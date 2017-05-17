@@ -2,22 +2,47 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.0
+# Version: 1.0.1
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
 ##############################
-#Required Libraries (Install these libraries the first time you run the App)
+#Version History
 ##############################
-library(shiny)
-library(ggplot2)
-library(colourpicker)
-library(shinyBS)
-library(shinythemes)
-library(DT)
-library(shinyjs)
-library(visNetwork)
-library(igraph)
+#V1.0.1 - Added code for checking whether packages installed. (Removes manual step)
+##############################
+
+
+##############################
+#Required Libraries
+##############################
+# Check whether packages of interest are installed
+is_installed = function(mypkg) is.element(mypkg, installed.packages()[,1]) 
+# Install library if not already installed
+# Run a for-loop of all the package names listed below in the function call
+# with the list of packages: load_or_install(c("pkg1", "pkg2",..., "pkgn"))
+load_or_install = function(package_names) 
+{ 
+  for(package_name in package_names) 
+  { 
+    if(!is_installed(package_name)) 
+    { 
+      #install.packages(package_name,repos="http://lib.stat.cmu.edu/R/CRAN") 
+      install.packages(package_name)
+    } 
+    library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
+  } 
+}
+load_or_install(c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph"))
+#library(shiny)
+#library(ggplot2)
+#library(colourpicker)
+#library(shinyBS)
+#library(shinythemes)
+#library(DT)
+#library(shinyjs)
+#library(visNetwork)
+#library(igraph)
 ##############################
 #GUI of the App
 ##############################
