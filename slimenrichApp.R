@@ -123,8 +123,8 @@ font-weight: bold;
 
                                                                                             )),
                                                                                    tabPanel("Network",fluidPage(tags$br(), selectInput("selectlayout", label = "Select Layout",
-                                                                                                                             choices = list("Nice" = "layout_nicely", "Circle" = "layout_in_circle", "Tree" = "layout_as_tree", "Davidson" = "layout.davidson.harel", "3D Grid" = "layout.grid.3d", "Sphere" = "layout_on_sphere", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
-                                                                                                                             selected = "layout_nicely"), tags$img(src="key.png", align = "right"),
+                                                                                                                             choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
+                                                                                                                             selected = "layout_in_circle"),
 
 
                                                                                                                  hr(),
