@@ -146,7 +146,7 @@ font-weight: bold;
 
                          tabPanel("Getting Started"),tabPanel("Instructions", fluidPage(
                            includeMarkdown("doc/instructions.Rmd")
-                         )), useShinyjs(),theme = shinytheme("cosmo"),
+                         )), useShinyjs(),theme = shinytheme("sandstone"),
                   tags$style(type="text/css", "#title {font-family: 'Impact', cursive;
  font-size: 32px;
                                        font-style:italic;
