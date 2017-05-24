@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.1
+# Version: 1.0.2
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -10,6 +10,7 @@
 #Version History
 ##############################
 #V1.0.1 - Added code for checking whether packages installed. (Removes manual step)
+#V1.0.2 - Better naming conventions
 ##############################
 
 
@@ -68,11 +69,11 @@ font-weight: bold;
                                                                      sidebarPanel(
                                                                        fileInput("PPI","Select Interaction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
 
-                                                                       fileInput("ELM","Select SLiMProb.occ file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+                                                                       fileInput("Motif","Select SLiM prediction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
                                                                        actionButton("run", "Run", width = "100px"),
-                                                                       div(id="fileuploads",checkboxInput("uploadelms",label = "Upload Domain and/or ELM.Pfam Files", value = FALSE)),
-                                                                       div(id="uploadelm",  fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-                                                                           fileInput("ELMPfam","Select ELM-Pfam file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')))
+                                                                       div(id="fileuploads",checkboxInput("uploadmotifs",label = "Upload Domain and/or Motif-Domain Files", value = FALSE)),
+                                                                       div(id="uploadmotif",  fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+                                                                           fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')))
                                                                      ),
 
                                                                      # MainPanel
@@ -191,8 +192,8 @@ server <- shinyServer(function(input, output, session){
   observe({
     toggle(id = "settings")
   })
-  observeEvent(input$uploadelms, {
-    toggle(id = "uploadelm", anim = TRUE)
+  observeEvent(input$uploadmotifs, {
+    toggle(id = "uploadmotif", anim = TRUE)
   })
 
   #####################################################Domain-Motif Interactions####################################################
@@ -200,14 +201,14 @@ server <- shinyServer(function(input, output, session){
   #Uploaded Data
   ####################################################
 
-  inputDataELM <-eventReactive(input$run, {
-    ELMFile<-input$ELM
+  inputDataMotif <-eventReactive(input$run, {
+    MotifFile<-input$Motif
     validate(
-      need(input$ELM != "", "Please select SLiMs file "), errorClass = "myClass"
+      need(input$Motif != "", "Please select SLiM prediction file "), errorClass = "myClass"
     )
 
     #Read uploaded files
-    ELM<-read.csv(ELMFile$datapath,header=TRUE,sep=",")
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
 
   })
   inputDataPPI <-eventReactive(input$run, {
@@ -220,23 +221,23 @@ server <- shinyServer(function(input, output, session){
 
   inputDatadomain <-eventReactive(input$run, {
     #File upload check
-    PfamFile<-input$domain
-    if(is.null(PfamFile)){
-      hProtein<-read.csv("data/Pfams.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
+    DomainFile<-input$domain
+    if(is.null(DomainFile)){
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
     }
 
     else{
-      hProtein<-read.csv(PfamFile$datapath,header=TRUE,sep=",")[,c('pfam','accnum')]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
     }
   })
-  inputDataELMPfam <-eventReactive(input$run, {
-    ELMPfamFile<-input$ELMPfam
-    if(is.null(ELMPfamFile)){
-      Pfam<-read.csv("data/ELM.Pfam.tsv",header=TRUE,sep="\t")[,c(1:2)]
+  inputDataMotifDomain <-eventReactive(input$run, {
+    MotifDomainFile<-input$MotifDomain
+    if(is.null(MotifDomainFile)){
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
 
     }
     else{
-      Pfam<-read.csv(ELMPfamFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
     }
 
   })
@@ -244,7 +245,7 @@ server <- shinyServer(function(input, output, session){
   #shows the data table
   output$udata<-renderDataTable({
 
-    inputDataELM()
+    inputDataMotif()
 
 
   })
@@ -254,8 +255,8 @@ server <- shinyServer(function(input, output, session){
 
   })
   output$udata3<-renderDataTable({
-    PfamFile<-input$domain
-    if(is.null(PfamFile)){
+    DomainFile<-input$domain
+    if(is.null(DomainFile)){
       return(NULL)
     }
     else{
@@ -263,12 +264,12 @@ server <- shinyServer(function(input, output, session){
     }
   })
   output$udata4<-renderDataTable({
-    ELMPfamFile<-input$ELMPfam
-    if(is.null(ELMPfamFile)){
+    MotifDomainFile<-input$MotifDomain
+    if(is.null(MotifDomainFile)){
       return(NULL)
     }
     else{
-    inputDataELMPfam()
+    inputDataMotifDomain()
     }
 
   })
@@ -277,50 +278,50 @@ server <- shinyServer(function(input, output, session){
   ####################################################
   potentialDMIs <-eventReactive(input$run, {
     #File upload check
-    ELMFile<-input$ELM
+    MotifFile<-input$Motif
     validate(
-      need(input$ELM != "", "No SLiMs file was found Please upload file and 'Run' again "), errorClass = "myClass"
+      need(input$Motif != "", "No SLiMs file was found Please upload file and 'Run' again "), errorClass = "myClass"
     )
     #File upload check
-    PfamFile<-input$domain
-    if(is.null(PfamFile)){
-      hProtein<-read.csv("data/Pfams.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
+    DomainFile<-input$domain
+    if(is.null(DomainFile)){
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
     }
 
     else{
-      hProtein<-read.csv(PfamFile$datapath,header=TRUE,sep=",")[,c('pfam','accnum')]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
     }
-    ELMPfamFile<-input$ELMPfam
-    if(is.null(ELMPfamFile)){
-      Pfam<-read.csv("data/ELM.Pfam.tsv",header=TRUE,sep="\t")[,c(1:2)]
+    MotifDomainFile<-input$MotifDomain
+    if(is.null(MotifDomainFile)){
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
 
   }
     else{
-      Pfam<-read.csv(ELMPfamFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
   }
     #Read uploaded files
-    ELM<-read.csv(ELMFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
-    ELM_NR<-unique(ELM)
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    names(Motif) <- c("UniprotID","Motif")
+    Motif_NR<-unique(Motif)
 
 
-#ELM-Pfam Mapping
+#Motif-Domain Mapping
     #Rename the columns in two files
-    names(ELM_NR) <- c("Seq", "ELM")
-    names(Pfam) <- c("ELM", "Pfam")
-    #Join/Merge two files based on ELM
-    Join <- merge(ELM_NR, Pfam, by="ELM")
-    #print(Join)
-    names(Join) <- c("ELM", "Seq", "Pfams")  #Change header of the output file
-#Pfam-hProtein Mapping
+    names(Motif_NR) <- c("Seq", "Motif")
+    names(Domain) <- c("Motif", "Domain")
+    #Join/Merge two files based on Motif
+    Join <- merge(Motif_NR, Domain, by="Motif")
+    names(Join) <- c("Motif", "Seq", "Domain")  #Change header of the output file
+#Domain-dProtein Mapping
     #Load results from the previous code)
-    names(hProtein) <- c("Pfams", "hProteins")
-    #joined both files based on Pfams
-    DMI <- merge(Join, hProtein,by="Pfams")
+    names(dProtein) <- c("Domain", "dProteins")
+    #joined both files based on domain
+    DMI <- merge(Join, dProtein,by="Domain")
     #Filtered unique DMIs
     Uni_DMI <- unique(DMI)
     #Named the header of output file
-    names(Uni_DMI) <- c("Pfam", "ELM", "Protein1", "Protein2")
-    Uni_DMI <- Uni_DMI[, c("Protein1","ELM", "Pfam", "Protein2")]
+    names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+    Uni_DMI <- Uni_DMI[, c("mProtein","Motif", "Domain", "dProtein")]
     print(Uni_DMI)
 
   })
@@ -363,63 +364,64 @@ server <- shinyServer(function(input, output, session){
   #Step 2: Predicted DMIs
   ####################################################
   predictedDMIs <-eventReactive(input$run, {
-    ELMFile<-input$ELM
+    MotifFile<-input$Motif
     PPIFile<-input$PPI
     validate(
-      need(input$ELM != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
+      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
     )
     validate(
       need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
     )
     validate(
-      need(input$ELM != "", "Please select SLiMs file "), errorClass = "myClass"
+      need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
     )
     #File upload check
-    PfamFile<-input$domain
-    if(is.null(PfamFile)){
-      hProtein<-read.csv("data/Pfams.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
+    DomainFile<-input$domain
+    if(is.null(DomainFile)){
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
     }
 
     else{
-      hProtein<-read.csv(PfamFile$datapath,header=TRUE,sep=",")[,c('pfam','accnum')]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
     }
-    ELMPfamFile<-input$ELMPfam
-    if(is.null(ELMPfamFile)){
-      Pfam<-read.csv("data/ELM.Pfam.tsv",header=TRUE,sep="\t")[,c(1:2)]
+    MotifDomainFile<-input$MotifDomain
+    if(is.null(MotifDomainFile)){
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
 
     }
     else{
-      Pfam<-read.csv(ELMPfamFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
     }
     #Read uploaded files
-    ELM<-read.csv(ELMFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
-    ELM_NR<-unique(ELM)
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    names(Motif) <- c("UniprotID","Motif")
+     Motif_NR<-unique(Motif)
 
     PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
     #Rename the columns in two files
-    names(ELM_NR) <- c("Seq", "ELM")
-    names(Pfam) <- c("ELM", "Pfam")
-    #Join/Merge two files based on ELM
-    Join <- merge(ELM_NR, Pfam, by="ELM")
+    names(Motif_NR) <- c("Seq", "Motif")
+    names(Domain) <- c("Motif", "Domain")
+    #Join/Merge two files based on Motif
+    Join <- merge( Motif_NR, Domain, by="Motif")
     #print(Join)
-    names(Join) <- c("ELM", "Seq", "Pfams")  #Change header of the output file
-    #Load vORF_ELM_Pfam file (result file from the previous code)
-    names(hProtein) <- c("Pfams", "hProteins")
-    #joined both files based on Pfams
-    DMI <- merge(Join, hProtein,by="Pfams")
+    names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
+    #Load mProtein_Motif_Domain file (result file from the previous code)
+    names(dProtein) <- c("Domains", "dProteins")
+    #joined both files based on Domains
+    DMI <- merge(Join, dProtein,by="Domains")
     #Filtered unique DMIs
     Uni_DMI <- unique(DMI)
     #Named the header of output file
-    names(Uni_DMI) <- c("Pfam", "ELM", "vProtein", "hProtein")
+    names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
     #print(Uni_DMI)
 
     #vhPPI-DMI Mapping
     ########################################################################
-    names(PPI2) <- c("vProtein", "hProtein")
-    predDMI <- merge(PPI2, Uni_DMI, by= c("vProtein", "hProtein"))
+    names(PPI2) <- c("mProtein", "dProtein")
+    predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
     Uni_predDMIs <- unique(predDMI)
-    names(Uni_predDMIs) <- c("Protein1", "Protein2", "Pfam", "ELM")
-    predDMIs <- Uni_predDMIs[, c("Protein1","ELM", "Pfam", "Protein2")]
+    names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+    predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
     print(predDMIs)
   })
   #Shows predicted DMIs in DataTable
@@ -461,85 +463,86 @@ server <- shinyServer(function(input, output, session){
   #Step 3: Statistics
   ####################################################
   summaryStat <- eventReactive(input$run, {
-    ELMFile<-input$ELM
+    MotifFile<-input$Motif
     PPIFile<-input$PPI
     validate(
-      need(input$ELM != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
+      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
     )
     validate(
       need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
     )
     validate(
-      need(input$ELM != "", "Please select SLiMs file "), errorClass = "myClass"
+      need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
     )
     #File upload check
-    PfamFile<-input$domain
-    if(is.null(PfamFile)){
-      hProtein<-read.csv("data/Pfams.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
+    DomainFile<-input$domain
+    if(is.null(DomainFile)){
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
     }
 
     else{
-      hProtein<-read.csv(PfamFile$datapath,header=TRUE,sep=",")[,c('pfam','accnum')]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
     }
-    ELMPfamFile<-input$ELMPfam
-    if(is.null(ELMPfamFile)){
-      Pfam<-read.csv("data/ELM.Pfam.tsv",header=TRUE,sep="\t")[,c(1:2)]
+    MotifDomainFile<-input$MotifDomain
+    if(is.null(MotifDomainFile)){
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
 
     }
     else{
-      Pfam<-read.csv(ELMPfamFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
     }
 
       #Read uploaded files
-      ELM<-read.csv(ELMFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
-      ELM_NR<-unique(ELM)
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+      names(Motif) <- c("UniprotID","Motif")
+      Motif_NR<-unique(Motif)
       PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
       #Rename the columns in two files
-      names(ELM_NR) <- c("Seq", "ELM")
-      names(Pfam) <- c("ELM", "Pfam")
-      #Join/Merge two files based on ELM
-      Join <- merge(ELM_NR, Pfam, by="ELM")
+      names( Motif_NR) <- c("Seq", "Motif")
+      names(Domain) <- c("Motif", "Domain")
+      #Join/Merge two files based on Motif
+      Join <- merge( Motif_NR, Domain, by="Motif")
       #print(Join)
-      names(Join) <- c("ELM", "Seq", "Pfams")  #Change header of the output file
-      #Load vORF_ELM_Pfam file (result file from the previous code)
-      names(hProtein) <- c("Pfams", "hProteins")
-      #joined both files based on Pfams
-      DMI <- merge(Join, hProtein,by="Pfams")
+      names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
+      #Load mProtein_Motif_Domain file (result file from the previous code)
+      names(dProtein) <- c("Domains", "dProteins")
+      #joined both files based on Domains
+      DMI <- merge(Join, dProtein,by="Domains")
       #Filtered unique DMIs
       Uni_DMI <- unique(DMI)
       #Named the header of output file
-      names(Uni_DMI) <- c("Pfam", "ELM", "vProtein", "hProtein")
+      names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
       #print(Uni_DMI)
       #vhPPI-DMI Mapping
       ########################################################################
-      names(PPI2) <- c("vProtein", "hProtein")
-      predDMI <- merge(PPI2, Uni_DMI, by= c("vProtein", "hProtein"))
+      names(PPI2) <- c("mProtein", "dProtein")
+      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
       Uni_predDMIs <- unique(predDMI)
-      names(Uni_predDMIs) <- c("Protein1", "Protein2", "Pfam", "ELM")
-      predDMIs <- Uni_predDMIs[, c("Protein1","ELM", "Pfam", "Protein2")]
+      names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+      predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
       #print(predDMIs)
       colors=c("cadetblue1", "deepskyblue2", "blue", "darkblue")
-      #Select unique ELM
-      uniq_elm <- unique(predDMI$ELM)
-      a <- length(uniq_elm)
-      #Select unique Pfam
-      uniq_pfam <- unique(predDMI$Pfam)
-      b <- length(uniq_pfam)
-      #Select unique vORF
-      uniq_vorf <- unique(predDMI$vProtein)
-      c <- length(uniq_vorf)
-      #Select unique hproteins
-      uniq_hprotein <- unique(predDMI$hProtein)
-      d <- length(uniq_hprotein)
-      uniq_count<-c(a = length(uniq_elm), b = length(uniq_pfam), c = length(uniq_vorf), d = length(uniq_hprotein))
+      #Select unique Motif
+      uniq_Motif <- unique(predDMI$Motif)
+      a <- length(uniq_Motif)
+      #Select unique Domain
+      uniq_Domain <- unique(predDMI$Domain)
+      b <- length(uniq_Domain)
+      #Select unique mProtein
+      uniq_mProtein <- unique(predDMI$mProtein)
+      c <- length(uniq_mProtein)
+      #Select unique dProteins
+      uniq_dProtein <- unique(predDMI$dProtein)
+      d <- length(uniq_dProtein)
+      uniq_count<-c(a = length(uniq_Motif), b = length(uniq_Domain), c = length(uniq_mProtein), d = length(uniq_dProtein))
       #Create pie chart
       x <- c(a,b,c,d)
       #Label names for the chart
-      labels <- c("ELMs", "Pfams", "ELM containing Proteins", "Domain containing Proteins")
+      labels <- c("Motifs", "Domains", "Motif containing Proteins", "Domain containing Proteins")
       #Created bar char of the unique values
       barplot(x, main="Statistics of DMIs", col = colors)
       legend("topright",
-             legend = c(paste("ELM=",a),paste("Pfam=",b),paste("ELM containing Proteins=",c),paste("Domain containing Proteins=",d)), fill = colors)
+             legend = c(paste("Motif=",a),paste("Domain=",b),paste("Motif containing Proteins=",c),paste("Domain containing Proteins=",d)), fill = colors)
 
     })
   output$plotbar <- renderPlot({
@@ -585,70 +588,71 @@ server <- shinyServer(function(input, output, session){
   #A file named randomNumbers will be generated in "RandomFiles" that will be used to generate Histogram later.
   ####################################################
   rPPIDMI <-reactive({
-    ELMFile<-input$ELM
+    MotifFile<-input$Motif
     PPIFile<-input$PPI
     validate(
-      need(input$ELM != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
+      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
     )
     validate(
       need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
     )
     validate(
-      need(input$ELM != "", "Please select SLiMs file "), errorClass = "myClass"
+      need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
     )
     #File upload check
-    PfamFile<-input$domain
-    if(is.null(PfamFile)){
-      hProtein<-read.csv("data/Pfams.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
+    DomainFile<-input$domain
+    if(is.null(DomainFile)){
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
     }
 
     else{
-      hProtein<-read.csv(PfamFile$datapath,header=TRUE,sep=",")[,c('pfam','accnum')]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
     }
-    ELMPfamFile<-input$ELMPfam
-    if(is.null(ELMPfamFile)){
-      Pfam<-read.csv("data/ELM.Pfam.tsv",header=TRUE,sep="\t")[,c(1:2)]
+    MotifDomainFile<-input$MotifDomain
+    if(is.null(MotifDomainFile)){
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
 
     }
     else{
-      Pfam<-read.csv(ELMPfamFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
     }
     observe({
       show(id = "go2")
     })
     #Read uploaded files
-    ELM<-read.csv(ELMFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
-    ELM_NR<-unique(ELM)
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    names(Motif) <- c("UniprotID","Motif")
+     Motif_NR<-unique(Motif)
     PPI<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
     #Rename the columns in two files
-    names(ELM_NR) <- c("Seq", "ELM")
-    names(Pfam) <- c("ELM", "Pfam")
-    #Join/Merge two files based on ELM
-    Join <- merge(ELM_NR, Pfam, by="ELM")
+    names( Motif_NR) <- c("Seq", "Motif")
+    names(Domain) <- c("Motif", "Domain")
+    #Join/Merge two files based on Motif
+    Join <- merge( Motif_NR, Domain, by="Motif")
     #print(Join)
-    names(Join) <- c("ELM", "Seq", "Pfams")  #Change header of the output file
-    #Load vORF_ELM_Pfam file (result file from the previous code)
-    names(hProtein) <- c("Pfams", "hProteins")
-    #joined both files based on Pfams
-    DMI <- merge(Join, hProtein,by="Pfams")
+    names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
+    #Load mProtein_Motif_Domain file (result file from the previous code)
+    names(dProtein) <- c("Domains", "dProteins")
+    #joined both files based on Domains
+    DMI <- merge(Join, dProtein,by="Domains")
     #Filtered unique DMIs
     Uni_DMI <- unique(DMI)
     #Named the header of output file
-    names(PPI) <- c("vProtein", "hProtein")
-    names(Uni_DMI) <- c("Pfam", "ELM", "vProtein", "hProtein")
-    predDMI <- merge(PPI, Uni_DMI, by= c("vProtein", "hProtein"))
+    names(PPI) <- c("mProtein", "dProtein")
+    names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+    predDMI <- merge(PPI, Uni_DMI, by= c("mProtein", "dProtein"))
     Uni_predDMIs <- unique(predDMI)
-    names(Uni_predDMIs) <- c("Protein1", "Protein2", "Pfam", "ELM")
-    predDMIs <- Uni_predDMIs[, c("Protein1","ELM", "Pfam", "Protein2")]
+    names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+    predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
     #print(predDMIs)
     #Randomization/Permutations
     ##############################################################################
     PPIFile<-input$PPI
 
      PPI_data<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
-    names(PPI_data) <- c("vORF", "hProtein")
-    PPI_Matrix<-matrix(data = PPI_data$vORF)
-    PPI_Matrix2<-matrix(data = PPI_data$hProtein)
+    names(PPI_data) <- c("mProtein", "dProtein")
+    PPI_Matrix<-matrix(data = PPI_data$mProtein)
+    PPI_Matrix2<-matrix(data = PPI_data$dProtein)
     PermutationFunction <- function (data, k) {
 
       # creating matrix: amount of variables * amount of permutations
@@ -675,9 +679,9 @@ server <- shinyServer(function(input, output, session){
         for (i in 1:1000) {
           rPPI <- read.table(paste0(dirName,"/rPPI", i, ".csv"),
                              stringsAsFactors=FALSE, sep=",", strip.white=TRUE)
-          names(rPPI)<-c("vProtein", "hProtein")
-          names(Uni_DMI) <- c("Pfam", "ELM", "vProtein", "hProtein")
-          DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("vProtein", "hProtein"))
+          names(rPPI)<-c("mProtein", "dProtein")
+          names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+          DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
           Matches <- nrow(DMI_rPPI)
           print(Matches)
           output_randomNumbers <- write.table(Matches, paste0(dirName,"/randomNumbers.csv"), col.names = FALSE, append = TRUE, row.names = FALSE)
@@ -695,7 +699,7 @@ server <- shinyServer(function(input, output, session){
           newCol1<-strsplit(as.character(final_file),':',fixed=TRUE)
           df<-data.frame(final_file,do.call(rbind, newCol1))
           subset = df[,c(2,3)]
-          names(subset)<-c("vProtein", "hProtein")
+          names(subset)<-c("mProtein", "dProtein")
           write.csv(subset, paste0(dirName,"/rPPI",j,".csv"), row.names = FALSE)
 
         }
@@ -707,9 +711,9 @@ server <- shinyServer(function(input, output, session){
 
         rPPI <- read.table(paste0(dirName,"/rPPI", i, ".csv"),
                            stringsAsFactors=FALSE, sep=",", strip.white=TRUE)
-        names(rPPI)<-c("vProtein", "hProtein")
-        names(Uni_DMI) <- c("Pfam", "ELM", "vProtein", "hProtein")
-        DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("vProtein", "hProtein"))
+        names(rPPI)<-c("mProtein", "dProtein")
+        names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+        DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
         Matches <- nrow(DMI_rPPI)
         print(Matches)
         output_randomNumbers <- write.table(Matches, paste0(dirName,"/randomNumbers.csv"), col.names = FALSE, append = TRUE, row.names = FALSE)
@@ -758,27 +762,27 @@ server <- shinyServer(function(input, output, session){
   })
   #Function to generate Histogram
   plotInput <- function(){
-    ELMFile<-input$ELM
+    MotifFile<-input$Motif
     PPIFile<-input$PPI
     validate(
-      need(input$ELM != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
+      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
     )
     #File upload check
-    PfamFile<-input$domain
-    if(is.null(PfamFile)){
-      hProtein<-read.csv("data/Pfams.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
+    DomainFile<-input$domain
+    if(is.null(DomainFile)){
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
     }
 
     else{
-      hProtein<-read.csv(PfamFile$datapath,header=TRUE,sep=",")[,c('pfam','accnum')]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
     }
-    ELMPfamFile<-input$ELMPfam
-    if(is.null(ELMPfamFile)){
-      Pfam<-read.csv("data/ELM.Pfam.tsv",header=TRUE,sep="\t")[,c(1:2)]
+    MotifDomainFile<-input$MotifDomain
+    if(is.null(MotifDomainFile)){
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
 
     }
     else{
-      Pfam<-read.csv(ELMPfamFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
     }
 
     dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
@@ -873,67 +877,68 @@ server <- shinyServer(function(input, output, session){
       # Compute the new data, and pass in the updateProgress function so
       # that it can update the progress indicator.
       compute_data(updateProgress)
-      ELMFile<-input$ELM
+      MotifFile<-input$Motif
       PPIFile<-input$PPI
       validate(
-        need(input$ELM != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
+        need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
       )
       validate(
         need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
       )
       validate(
-        need(input$ELM != "", "Please select SLiMs file "), errorClass = "myClass"
+        need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
       )
       #File upload check
-      PfamFile<-input$domain
-      if(is.null(PfamFile)){
-        hProtein<-read.csv("data/Pfams.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
+      DomainFile<-input$domain
+      if(is.null(DomainFile)){
+        dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
       }
 
       else{
-        hProtein<-read.csv(PfamFile$datapath,header=TRUE,sep=",")[,c('pfam','accnum')]
+        dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
       }
-      ELMPfamFile<-input$ELMPfam
-      if(is.null(ELMPfamFile)){
-        Pfam<-read.csv("data/ELM.Pfam.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      MotifDomainFile<-input$MotifDomain
+      if(is.null(MotifDomainFile)){
+        Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
 
       }
       else{
-        Pfam<-read.csv(ELMPfamFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+        Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
       }
       #Read uploaded files
-      ELM<-read.csv(ELMFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
-      ELM_NR<-unique(ELM)
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+      names(Motif) <- c("UniprotID","Motif")
+       Motif_NR<-unique(Motif)
       PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
       #Rename the columns in two files
-      names(ELM_NR) <- c("Seq", "ELM")
-      names(Pfam) <- c("ELM", "Pfam")
-      #Join/Merge two files based on ELM
-      Join <- merge(ELM_NR, Pfam, by="ELM")
+      names( Motif_NR) <- c("Seq", "Motif")
+      names(Domain) <- c("Motif", "Domain")
+      #Join/Merge two files based on Motif
+      Join <- merge( Motif_NR, Domain, by="Motif")
       #print(Join)
-      names(Join) <- c("ELM", "Seq", "Pfams")  #Change header of the output file
-      #Load vORF_ELM_Pfam file (result file from the previous code)
-      names(hProtein) <- c("Pfams", "hProteins")
-      #joined both files based on Pfams
-      DMI <- merge(Join, hProtein,by="Pfams")
+      names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
+      #Load mProtein_Motif_Domain file (result file from the previous code)
+      names(dProtein) <- c("Domains", "dProteins")
+      #joined both files based on Domains
+      DMI <- merge(Join, dProtein,by="Domains")
       #Filtered unique DMIs
       Uni_DMI <- unique(DMI)
       #Named the header of output file
-      names(Uni_DMI) <- c("Pfam", "ELM", "vProtein", "hProtein")
+      names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
       #print(Uni_DMI)
 
       #vhPPI-DMI Mapping
       ########################################################################
-      names(PPI2) <- c("vProtein", "hProtein")
-      predDMI <- merge(PPI2, Uni_DMI, by= c("vProtein", "hProtein"))
+      names(PPI2) <- c("mProtein", "dProtein")
+      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
 
       Uni_predDMIs <- unique(predDMI)
-      names(Uni_predDMIs) <- c("Protein1", "Protein2", "Pfam", "ELM")
-      predDMIs <- Uni_predDMIs[, c("Protein1","ELM", "Pfam", "Protein2")]
+      names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+      predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
       if(nrow(predDMIs) != 0){
       #Network
 
-      first <- predDMI[,c("vProtein","ELM")]
+      first <- predDMI[,c("mProtein","Motif")]
       g <- graph.data.frame(first, directed = F)
       #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
       V(g)$color <- ifelse(V(g)$name %in% predDMI[,1], "#A93226", "#F7DC6F")
@@ -943,7 +948,7 @@ server <- shinyServer(function(input, output, session){
       ##print(first)
       #V(g)$color <- "red"
       #Second
-      second <- predDMI[,c("ELM","Pfam")]
+      second <- predDMI[,c("Motif","Domain")]
       g2 <- graph.data.frame(second, directed = F)
       #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
       V(g2)$color <- ifelse(V(g2)$name %in% predDMI[,1], "#9B59B6", "#D35400")
@@ -954,7 +959,7 @@ server <- shinyServer(function(input, output, session){
       #V(g2)$color <- "green"
       #Third
 
-      third <- predDMI[,c("Pfam","hProtein")]
+      third <- predDMI[,c("Domain","dProtein")]
       g3 <- graph.data.frame(third, directed = F)
       #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
       V(g3)$color <- ifelse(V(g3)$name %in% predDMI[,3], "#9B59B6", "#85C1E9")
