@@ -2,10 +2,16 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.0
+# Version: 1.0.1
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
+##############################
+#Version History
+##############################
+#V1.0.1 - Generic naming
+##############################
+
 ##############################
 #Required Libraries
 ##############################
@@ -18,29 +24,28 @@ library(igraph)
 #Step 1: Potential DMIs
 ####################################################
       #Read uploaded files
-      ELM<-read.csv("Files/slimprob.occ.csv",header=TRUE,sep=",")[,c('AccNum','Motif')]
-      ELM_NR<-unique(ELM)
-      Pfam<-read.csv("Files/ELMs_Pfams.tsv",header=TRUE,sep="\t")[,c(1:2)]
-      hProtein<-read.csv("Files/Pfams.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
-      #hProtein<-read.csv("Files/hProteins.csv",header=TRUE,sep=",")
-      #ELM-Pfam Mapping                                            
+      Motif<-read.csv("Files/slimprob.occ.csv",header=TRUE,sep=",")[,c('AccNum','Motif')]
+      Motif_NR<-unique(Motif)
+      Domain<-read.csv("Files/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      dProtein<-read.csv("Files/domain.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
+      #Motif-Domain Mapping                                            
       #Rename the columns in two files
-      names(ELM_NR) <- c("Seq", "ELM")
-      names(Pfam) <- c("ELM", "Pfam")
-      #Join/Merge two files based on ELM                 
-      Join <- merge(ELM_NR, Pfam, by="ELM")
+      names(Motif_NR) <- c("Seq", "Motif")
+      names(Domain) <- c("Motif", "Domain")
+      #Join/Merge two files based on Motif                 
+      Join <- merge(Motif_NR, Domain, by="Motif")
       #print(Join)
-      names(Join) <- c("ELM", "Seq", "Pfams")  #Change header of the output file
-      #Pfam-hProtein Mapping                                       
+      names(Join) <- c("Motif", "Seq", "Domain")  #Change header of the output file
+      #Domain-dProtein Mapping                                       
       #Load results from the previous code)
-      names(hProtein) <- c("Pfams", "hProteins")
-      #joined both files based on Pfams
-      DMI <- merge(Join, hProtein,by="Pfams")
+      names(dProtein) <- c("Domain", "dProteins")
+      #joined both files based on Domain
+      DMI <- merge(Join, hProtein,by="Domain")
       #Filtered unique DMIs
       Uni_DMI <- unique(DMI)
       #Named the header of output file
-      names(Uni_DMI) <- c("Pfam", "ELM", "Protein1", "Protein2")
-      Uni_DMI <- Uni_DMI[, c("Protein1","ELM", "Pfam", "Protein2")]
+      names(Uni_DMI) <- c("Domain", "Motif", "mProtein1", "dProtein")
+      Uni_DMI <- Uni_DMI[, c("mProtein1","Motif", "Domain", "dProtein")]
       #print(Uni_DMI)
       dir.create("output")
       output_potentialDMIs <- write.csv(Uni_DMI, "output/potentialDMIs.csv", row.names = FALSE)
@@ -52,11 +57,11 @@ library(igraph)
       #vhPPI-DMI Mapping                                                         
       ########################################################################
       PPI2<-read.csv("Files/PPIs.csv",header=TRUE,sep=",")
-      names(PPI2) <- c("Protein1", "Protein2")
-      predDMI <- merge(PPI2, Uni_DMI, by= c("Protein1", "Protein2"))
+      names(PPI2) <- c("mProtein1", "dProtein")
+      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein1", "dProtein"))
       Uni_predDMIs <- unique(predDMI)
-      names(Uni_predDMIs) <- c("Protein1", "Protein2", "ELM", "Pfam")
-      predDMIs <- Uni_predDMIs[, c("Protein1","ELM", "Pfam", "Protein2")]
+      names(Uni_predDMIs) <- c("mProtein", "dProtein", "Motif", "Domain")
+      predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
       #print(predDMIs)    
       output_predictedDMIs <- write.csv(predDMIs, "output/predictedDMIs.csv", row.names = FALSE)
       print("predictedDMIs.csv file has been saved in output folder")
@@ -68,27 +73,27 @@ library(igraph)
         
         png(filename="output/summaryStats.png")
         colors=c("cadetblue1", "deepskyblue2", "blue", "darkblue")
-        #Select unique ELM
-        uniq_elm <- unique(predDMI$ELM)
-        a <- length(uniq_elm)
-        #Select unique Pfam
-        uniq_pfam <- unique(predDMI$Pfam)
-        b <- length(uniq_pfam)
-        #Select unique vORF
-        uniq_vorf <- unique(predDMI$Protein1)
-        c <- length(uniq_vorf)
-        #Select unique hproteins
-        uniq_hprotein <- unique(predDMI$Protein2)
-        d <- length(uniq_hprotein)
-        uniq_count<-c(a = length(uniq_elm), b = length(uniq_pfam), c = length(uniq_vorf), d = length(uniq_hprotein))
+        #Select unique Motifs
+        uniq_motif <- unique(predDMI$Motif)
+        a <- length(uniq_motif)
+        #Select unique Domain
+        uniq_domain <- unique(predDMI$domain)
+        b <- length(uniq_domain)
+        #Select unique mProtein
+        uniq_mprotein <- unique(predDMI$mProtein)
+        c <- length(uniq_mprotein)
+        #Select unique dproteins
+        uniq_dprotein <- unique(predDMI$dProtein)
+        d <- length(uniq_dprotein)
+        uniq_count<-c(a = length(uniq_motif), b = length(uniq_domain), c = length(uniq_mprotein), d = length(uniq_dprotein))
         #Create pie chart
         x <- c(a,b,c,d)
         #Label names for the chart
-        labels <- c("ELMs", "Pfams", "ELM containing Proteins", "Domain containing Proteins")
+        labels <- c("Motif", "Domain", "mProtein", "dProtein")
         #Created bar char of the unique values
         barplot(x, main="Statistics of DMIs", col = colors)
         legend("topright", 
-               legend = c(paste("ELM=",a),paste("Pfam=",b),paste("ELM containing Proteins=",c),paste("Domain containing Proteins=",d)), fill = colors)
+               legend = c(paste("Motifs=",a),paste("Domains=",b),paste("mProteins=",c),paste("dProteins=",d)), fill = colors)
         print("Summary Statistics Bar chart has been saved in output folder")
         dev.off()
      
@@ -108,9 +113,9 @@ library(igraph)
       #Randomization/Permutations                                                  
       
       PPI_data<-read.csv("Files/PPIs.csv",header=TRUE,sep=",")
-      names(PPI_data) <- c("vORF", "hProtein")
-      PPI_Matrix<-matrix(data = PPI_data$vORF)
-      PPI_Matrix2<-matrix(data = PPI_data$hProtein)
+      names(PPI_data) <- c("mProtein", "dProtein")
+      PPI_Matrix<-matrix(data = PPI_data$mProtein)
+      PPI_Matrix2<-matrix(data = PPI_data$dProtein)
       PermutationFunction <- function (data, k) {
         
         # creating matrix: amount of variables * amount of permutations
@@ -139,7 +144,7 @@ library(igraph)
         newCol1<-strsplit(as.character(final_file),':',fixed=TRUE)
         df<-data.frame(final_file,do.call(rbind, newCol1))
         subset = df[,c(2,3)]
-        names(subset)<-c("vProtein", "hProtein")
+        names(subset)<-c("mProtein", "dProtein")
         write.csv(subset, paste0("RandomFiles/rPPI",j,".csv"), row.names = FALSE)
       }
       print("1000 RandomFiles have been created in RandomFiles folder")
@@ -153,9 +158,9 @@ library(igraph)
       for (i in 1:1000) {
         rPPI <- read.table(paste0("RandomFiles/rPPI", i, ".csv"),
                            stringsAsFactors=FALSE, sep=",", strip.white=TRUE)
-        names(rPPI)<-c("vProtein", "hProtein")
-        names(Uni_DMI) <- c("vProtein","ELM", "Pfam","hProtein")
-        DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("vProtein", "hProtein"))
+        names(rPPI)<-c("mProtein", "dProtein")
+        names(Uni_DMI) <- c("mProtein","Motif", "Domain","dProtein")
+        DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
         Matches <- nrow(DMI_rPPI)
         print(paste0("File ",i,": ",Matches))
         
@@ -201,7 +206,7 @@ library(igraph)
     ####################################################
    
         #Network
-        first <- predDMIs[,c("Protein1","ELM")]
+        first <- predDMIs[,c("mProtein","Motif")]
         g <- graph.data.frame(first, directed = F)
         #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
         V(g)$color <- ifelse(V(g)$name %in% predDMI[,1], "#A93226", "#F7DC6F")
@@ -211,7 +216,7 @@ library(igraph)
         ##print(first)
         #V(g)$color <- "red"
         #Second
-        second <- predDMIs[,c("ELM","Pfam")]
+        second <- predDMIs[,c("Motif","Domain")]
         g2 <- graph.data.frame(second, directed = F)
         #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
         V(g2)$color <- ifelse(V(g2)$name %in% predDMI[,1], "#9B59B6", "#D35400")
@@ -222,7 +227,7 @@ library(igraph)
         #V(g2)$color <- "green"
         #Third
         
-        third <- predDMIs[,c("Pfam","Protein2")]
+        third <- predDMIs[,c("Domain","dProtein")]
         g3 <- graph.data.frame(third, directed = F)
         #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
         V(g3)$color <- ifelse(V(g3)$name %in% predDMI[,3], "#9B59B6", "#85C1E9")
