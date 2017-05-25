@@ -1,13 +1,22 @@
 #*********************************************************************************************************
 #*********************************************************************************************************
-# Short Linear Motif Enrichment Analysis Server (SLiMEnrich)
+# Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.0
-# Description: -SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
-#              -This version doesn't save randomized files and matches file.
-#              -Added better naming conventions (generic)
+# Version: 1.0.3
+# Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
+##############################
+#Version History
+##############################
+#****************This is the server version of the App. It doesn't download randomized files or matches file.******************# 
+#V1.0.1 - Added code for checking whether packages installed. (Removes manual step)
+#V1.0.2 - Better naming conventions in code
+#V1.0.3 - Added titles/captions to data tables (uploaded files).
+#       - Improved summary bar chart (used plotly), 
+#       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
+##############################
+
 ##############################
 #Required Libraries
 ##############################
@@ -28,7 +37,7 @@ load_or_install = function(package_names)
     library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
   } 
 }
-load_or_install(c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph"))
+load_or_install(c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly"))
 #library(shiny)
 #library(ggplot2)
 #library(colourpicker)
@@ -38,6 +47,8 @@ load_or_install(c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", 
 #library(shinyjs)
 #library(visNetwork)
 #library(igraph)
+#library(plotly)
+#library(markdown)
 ##############################
 #GUI of the App
 ##############################
@@ -73,7 +84,7 @@ if (interactive()) {
       # MainPanel
       mainPanel(
         #Creates a seperate window (pop up window)
-        bsModal("Hist", "Histogram", "go", size = "large", plotOutput("plot"),  downloadButton("downloadPlot", "Download")),
+        #bsModal("Hist", "Histogram", "go", size = "large", plotOutput("plot"),  downloadButton("downloadPlot", "Download")),
         #Tab view
         tabsetPanel(type="tabs",
                     tabPanel("Uploaded Data",
@@ -81,6 +92,7 @@ if (interactive()) {
                                splitLayout(cellWidths = c("50%", "50%", "50%", "50%"), DT::dataTableOutput("udata2"), DT::dataTableOutput("udata")), DT::dataTableOutput("udata4"), DT::dataTableOutput("udata3")
                              )
                     ),
+                    
                     tabPanel("Potential DMIs",
                              DT::dataTableOutput("data"),
                              tags$hr(),
@@ -90,38 +102,47 @@ if (interactive()) {
                     tabPanel("Predicted DMIs", DT::dataTableOutput("PredDMIs"),tags$hr(),downloadButton('downloadpredDMI', 'Download')),
                     
                     tabPanel("Statistics", fluidRow(
-                      splitLayout(cellWidths = c("50%", "50%"), plotOutput("plotbar"))
+                      splitLayout(cellWidths = c("75%", "25%"), plotlyOutput("plotbar"))
                     )),
                     tabPanel("Histogram", fluidRow(
                       splitLayout(cellWidths = c("50%", "50%"), plotOutput("histogram"), htmlOutput("summary"))),
                       tags$hr(),
                       div(id="txtbox",actionButton("setting", "Settings")),
-                      div(id="txtbox",actionButton("go", "Open plot in a separate window")),
+                      div(id="txtbox",downloadButton("downloadPlot", "Download")),
                       
-                      div(id="settings", sliderInput("bins",
+                      div(id="settings", sliderInput("bins", 
                                                      "Number of bins",
                                                      min= 1,
                                                      max = 200,
                                                      value = 30),
                           tags$hr(),
+                          tags$h4(tags$strong("Select labels")),
+                        
                           checkboxInput("barlabel", label="Bar Labels", value = FALSE, width = NULL),
                           div(id="txtbox", textInput("text3", label = "Main title", value = "Distribution of random DMIs")),
                           div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Numbers of random DMIs")),
                           tags$style(type="text/css", "#txtbox {display: inline-block; max-width: 200px; }"),
                           div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
                           tags$hr(),
+                          tags$h4(tags$strong("Select Colors")),
+                          
                           div(id="txtbox",colourInput("col", "Select bar colour", "deepskyblue1")),
-                          div(id="txtbox",colourInput("col2", "Select background colour", "white"))
+                          div(id="txtbox",colourInput("col2", "Select background colour", "white")),
+                          tags$hr(),
+                          tags$h4(tags$strong("Select width/height to download plot as png")),
+                          
+                          div(id="txtbox",numericInput("width", label = "Width ", value = 1200)),
+                          div(id="txtbox",numericInput("height", label = "Height ", value = 700))
                           
                           
                           
                       )),
                     tabPanel("Network",fluidPage(tags$br(), selectInput("selectlayout", label = "Select Layout",
-                                                                                                                             choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
-                                                                                                                             selected = "layout_in_circle"),
-
-
-                                                                                                                 hr(),
+                                                                        choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
+                                                                        selected = "layout_in_circle"),
+                                                 
+                                                 
+                                                 hr(),
                                                  
                                                  visNetworkOutput(outputId = "network",
                                                                   height = "1500px",
@@ -238,16 +259,19 @@ if (interactive()) {
     
     #shows the data table
     output$udata<-renderDataTable({
-      
       inputDataMotif()
       
       
-    })
+    },
+    caption = tags$h4(tags$strong("SLiM Prediction File"))
+    )
     output$udata2<-renderDataTable({
       
       inputDataPPI()
       
-    })
+    },
+    caption = tags$h4(tags$strong("Interaction File"))
+    )
     output$udata3<-renderDataTable({
       DomainFile<-input$domain
       if(is.null(DomainFile)){
@@ -256,7 +280,9 @@ if (interactive()) {
       else{
         inputDatadomain()
       }
-    })
+    },
+    caption = tags$h4(tags$strong("Domain File"))
+    )
     output$udata4<-renderDataTable({
       MotifDomainFile<-input$MotifDomain
       if(is.null(MotifDomainFile)){
@@ -266,7 +292,9 @@ if (interactive()) {
         inputDataMotifDomain()
       }
       
-    })
+    },
+    caption = tags$h4(tags$strong("Motif-Domain File"))
+                      )
     #*************************************************************************************
     #Step 1: Potential DMIs
     ####################################################
@@ -531,15 +559,26 @@ if (interactive()) {
       uniq_count<-c(a = length(uniq_Motif), b = length(uniq_Domain), c = length(uniq_mProtein), d = length(uniq_dProtein))
       #Create pie chart
       x <- c(a,b,c,d)
-      #Label names for the chart
-      labels <- c("Motifs", "Domains", "Motif containing Proteins", "Domain containing Proteins")
-      #Created bar char of the unique values
-      barplot(x, main="Statistics of DMIs", col = colors)
-      legend("topright",
-             legend = c(paste("Motif=",a),paste("Domain=",b),paste("Motif containing Proteins=",c),paste("Domain containing Proteins=",d)), fill = colors)
+      
+      statdmi <- data.frame(
+        Datatype = factor(c("Motif","Domain","mProtien","dProtein")),
+        Numbers = c(a,b,c,d)
+      )
+      
+      p <- ggplot(data=statdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
+        geom_bar(colour="black", stat="identity") +
+        guides(fill=FALSE)
+      
+      p <- ggplotly(p)
+      #p
+      
+      #barplot(x, main="Statistics of DMIs", col = colors)
+      
+      #legend("topright",
+      #legend = c(paste("Motif=",a),paste("Domain=",b),paste("Motif containing Proteins=",c),paste("Domain containing Proteins=",d)), fill = colors)
       
     })
-    output$plotbar <- renderPlot({
+    output$plotbar <- renderPlotly({
       if(input$run){
         style <- isolate(input$style)
         
@@ -666,7 +705,8 @@ if (interactive()) {
     #dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
     #dir.create(dirName)
     #for loop to create 1000 randomized files
-    data <- list()
+      showNotification("Performing the randomizations", type = "message", duration = 5)
+      data <- list()
     for (j in 1:1000) {
       permutation<-PermutationFunction(PPI_Matrix, k = length(PPI_Matrix))
       permutation2<-PermutationFunction(PPI_Matrix2, k = length(PPI_Matrix2))
@@ -681,7 +721,9 @@ if (interactive()) {
     }
     #rPPI-DMI Mapping                                                               
     #################################################################################
-    m <- data.frame()
+      showNotification("1000 random PPI files have been created in RandomFiles folder", type = "message", duration = 5)
+      showNotification("Now predicing DMIs from the random PPI data", type = "message", closeButton = TRUE,duration = 15)
+      m <- data.frame()
     for (i in 1:1000) {
       rPPI <- data[[i]]
       names(rPPI)<-c("MotifProtein", "DomainProtein")
@@ -723,7 +765,7 @@ if (interactive()) {
             value <- progress$getValue()
             value <- value + (progress$getMax() - value) / 5
           }
-          progress$set(value = value, detail = "This may take a while!!")
+          progress$set(value = value, detail = "This may take a while!!. Nothing will respond while it's being calculated (e.g. network)")
         }
         
         # Compute the new data, and pass in the updateProgress function so
@@ -986,7 +1028,7 @@ if (interactive()) {
   output$downloadPlot <- downloadHandler(
     filename = 'Histogram.png',
     content = function(file) {
-      png(file, width = 1200, height = 700, units = "px", pointsize = 12)
+      png(file, width = input$width, height = input$height, units = "px", pointsize = 12)
       plotInput()
       dev.off()
     }
