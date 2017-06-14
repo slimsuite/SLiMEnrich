@@ -87,10 +87,7 @@ font-weight: bold;
                                                                        #Creates a seperate window (pop up window)
                                                                        #bsModal("Hist", "Histogram", "go", size = "large", plotOutput("plot"),  downloadButton("downloadPlot", "Download")),
                                                                        
-                                                                       bsModal("savefiles", "Do you want to save random files?", "save", size = "small",wellPanel(
-                                                                         actionButton("no_button", "Yes"),
-                                                                         actionButton("yes_button", "No")
-                                                                       )),
+                                                  
                                                                        #Tab view
                                                                        tabsetPanel(type="tabs",
                                                                                    tabPanel("Uploaded Data",
