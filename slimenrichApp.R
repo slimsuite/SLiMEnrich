@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.3
+# Version: 1.0.4
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -14,7 +14,10 @@
 #V1.0.3 - Added titles/captions to data tables (uploaded files).
 #       - Improved summary bar chart (used plotly), 
 #       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
+#V1.0.4 - Checks whether any of the random files is missing and creates if not present.
 ##############################
+
+
 ##############################
 #Required Libraries
 ##############################
@@ -83,6 +86,11 @@ font-weight: bold;
                                                                      mainPanel(
                                                                        #Creates a seperate window (pop up window)
                                                                        #bsModal("Hist", "Histogram", "go", size = "large", plotOutput("plot"),  downloadButton("downloadPlot", "Download")),
+                                                                       
+                                                                       bsModal("savefiles", "Do you want to save random files?", "save", size = "small",wellPanel(
+                                                                         actionButton("no_button", "Yes"),
+                                                                         actionButton("yes_button", "No")
+                                                                       )),
                                                                        #Tab view
                                                                        tabsetPanel(type="tabs",
                                                                                    tabPanel("Uploaded Data",
@@ -104,6 +112,7 @@ font-weight: bold;
                                                                                    tabPanel("Histogram", fluidRow(
                                                                                      splitLayout(cellWidths = c("50%", "50%"), plotOutput("histogram"), htmlOutput("summary"))),
                                                                                      tags$hr(),
+                                                                                     
                                                                                      div(id="txtbox",actionButton("setting", "Settings")),
                                                                                      div(id="txtbox",downloadButton("downloadPlot", "Download")),
                                                                                      
@@ -130,6 +139,7 @@ font-weight: bold;
                                                                                          
                                                                                          div(id="txtbox",numericInput("width", label = "Width ", value = 1200)),
                                                                                          div(id="txtbox",numericInput("height", label = "Height ", value = 700))
+                                                                                         
                                                                                          
                                                                                          
                                                                                          
@@ -703,14 +713,32 @@ server <- shinyServer(function(input, output, session){
       }
       permutations
     }
-
     dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
     if(file.exists(paste0(dirName))){
-      showNotification(paste0("RandomFiles folder already exists. Loaded instead"),closeButton = TRUE, type = "warning")
+      showNotification(paste0("RandomFiles folder already exists. Will be Loaded instead"),closeButton = TRUE, type = "warning")
+      
+      #checks if any of the 1000 random files is missing and creates it.
+      for (l in 1:1000) {
+        if(!file.exists(paste0(dirName,"/rPPI",l,".csv"))){
+          
+          permutation<-PermutationFunction(PPI_Matrix, k = length(PPI_Matrix))
+          permutation2<-PermutationFunction(PPI_Matrix2, k = length(PPI_Matrix2))
+          final_file<- c(paste(permutation,permutation2, sep = ":"))
+          newCol1<-strsplit(as.character(final_file),':',fixed=TRUE)
+          df<-data.frame(final_file,do.call(rbind, newCol1))
+          subset = df[,c(2,3)]
+          names(subset)<-c("mProtein", "dProtein")
+          write.csv(subset, paste0(dirName,"/rPPI",l,".csv"), row.names = FALSE)
+        }
+      }
+      #checks if randomNumber file exists and loads instead.
       if(file.exists(paste0(dirName,"/randomNumbers.csv"))){
         showNotification(paste0("randomNumbers file already exists. Loaded instead"),closeButton = TRUE, type = "warning")
         x<-read.csv(paste0(dirName,"/randomNumbers.csv"), sep = ",", header = FALSE)
       }
+          
+        
+      
       else{
         for (i in 1:1000) {
           rPPI <- read.table(paste0(dirName,"/rPPI", i, ".csv"),
@@ -728,6 +756,7 @@ server <- shinyServer(function(input, output, session){
     else{
       showNotification("Performing the randomizations", type = "message", duration = 5)
       dir.create(dirName)
+    
         #for loop to create 1000 randomized files
         for (j in 1:1000) {
           permutation<-PermutationFunction(PPI_Matrix, k = length(PPI_Matrix))
@@ -738,8 +767,8 @@ server <- shinyServer(function(input, output, session){
           subset = df[,c(2,3)]
           names(subset)<-c("mProtein", "dProtein")
           write.csv(subset, paste0(dirName,"/rPPI",j,".csv"), row.names = FALSE)
-
-        }
+        
+      }
       showNotification("1000 random PPI files have been created in RandomFiles folder", type = "message", duration = 5)
       showNotification("Now predicing DMIs from the random PPI data", type = "message", closeButton = TRUE,duration = 15)
       #rPPI-DMI Mapping
@@ -753,6 +782,7 @@ server <- shinyServer(function(input, output, session){
         DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
         Matches <- nrow(DMI_rPPI)
         print(Matches)
+        
         output_randomNumbers <- write.table(Matches, paste0(dirName,"/randomNumbers.csv"), col.names = FALSE, append = TRUE, row.names = FALSE)
 
       }
