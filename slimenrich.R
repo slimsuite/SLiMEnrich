@@ -38,29 +38,29 @@ load_or_install(c("ggplot2", "visNetwork", "igraph"))
 #*************************************************************************************
 #Step 1: Potential DMIs
 ####################################################
-      #Read uploaded files
-      Motif<-read.csv("Files/slimprob.occ.csv",header=TRUE,sep=",")[,c('AccNum','Motif')]
+      #Read uploaded data
+      Motif<-read.csv("data/slimprob.occ.csv",header=TRUE,sep=",")[,c('AccNum','Motif')]
       Motif_NR<-unique(Motif)
-      Domain<-read.csv("Files/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
-      dProtein<-read.csv("Files/domain.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
       #Motif-Domain Mapping                                            
-      #Rename the columns in two files
+      #Rename the columns in two data
       names(Motif_NR) <- c("Seq", "Motif")
       names(Domain) <- c("Motif", "Domain")
-      #Join/Merge two files based on Motif                 
+      #Join/Merge two data based on Motif                 
       Join <- merge(Motif_NR, Domain, by="Motif")
       #print(Join)
       names(Join) <- c("Motif", "Seq", "Domain")  #Change header of the output file
       #Domain-dProtein Mapping                                       
       #Load results from the previous code)
       names(dProtein) <- c("Domain", "dProteins")
-      #joined both files based on Domain
-      DMI <- merge(Join, hProtein,by="Domain")
+      #joined both data based on Domain
+      DMI <- merge(Join, dProtein,by="Domain")
       #Filtered unique DMIs
       Uni_DMI <- unique(DMI)
       #Named the header of output file
-      names(Uni_DMI) <- c("Domain", "Motif", "mProtein1", "dProtein")
-      Uni_DMI <- Uni_DMI[, c("mProtein1","Motif", "Domain", "dProtein")]
+      names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+      Uni_DMI <- Uni_DMI[, c("mProtein","Motif", "Domain", "dProtein")]
       #print(Uni_DMI)
       dir.create("output")
       output_potentialDMIs <- write.csv(Uni_DMI, "output/potentialDMIs.csv", row.names = FALSE)
@@ -69,11 +69,11 @@ load_or_install(c("ggplot2", "visNetwork", "igraph"))
     
     #Step 2: Predicted DMIs
     ####################################################
-      #vhPPI-DMI Mapping                                                         
+      #PPI-DMI Mapping                                                         
       ########################################################################
-      PPI2<-read.csv("Files/PPIs.csv",header=TRUE,sep=",")
-      names(PPI2) <- c("mProtein1", "dProtein")
-      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein1", "dProtein"))
+      PPI2<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
+      names(PPI2) <- c("mProtein", "dProtein")
+      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
       Uni_predDMIs <- unique(predDMI)
       names(Uni_predDMIs) <- c("mProtein", "dProtein", "Motif", "Domain")
       predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
@@ -120,14 +120,14 @@ load_or_install(c("ggplot2", "visNetwork", "igraph"))
     
     #Step 4: rPPI-DMI Mapping
     ####################################################
-    #This step generates 1000 random files and then compares each file with the potential DMIs dataset to generate a list of numbers (matches found in each PPI file).
-    #Randomized files will be stored in a new directory created in App folder named as "RandomFiles" and can be accessed later if required.
-    #A file named randomNumbers will be generated in "RandomFiles" that will be used to generate Histogram later.
+    #This step generates 1000 random data and then compares each file with the potential DMIs dataset to generate a list of numbers (matches found in each PPI file).
+    #Randomized data will be stored in a new directory created in App folder named as "Randomdata" and can be accessed later if required.
+    #A file named randomNumbers will be generated in "Randomdata" that will be used to generate Histogram later.
     ####################################################
 
       #Randomization/Permutations                                                  
       
-      PPI_data<-read.csv("Files/PPIs.csv",header=TRUE,sep=",")
+      PPI_data<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
       names(PPI_data) <- c("mProtein", "dProtein")
       PPI_Matrix<-matrix(data = PPI_data$mProtein)
       PPI_Matrix2<-matrix(data = PPI_data$dProtein)
@@ -147,11 +147,11 @@ load_or_install(c("ggplot2", "visNetwork", "igraph"))
       }
       
       
-      dir.create("RandomFiles")
+      dir.create("Randomdata")
       
-     # dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
+     # dirName <- paste0("Randomdata_", strsplit(as.character(PPIFile$name), '.csv'))
     #  dir.create(dirName)
-      #for loop to create 1000 randomized files
+      #for loop to create 1000 randomized data
       for (j in 1:1000) {
         permutation<-PermutationFunction(PPI_Matrix, k = length(PPI_Matrix))
         permutation2<-PermutationFunction(PPI_Matrix2, k = length(PPI_Matrix2))
@@ -160,18 +160,18 @@ load_or_install(c("ggplot2", "visNetwork", "igraph"))
         df<-data.frame(final_file,do.call(rbind, newCol1))
         subset = df[,c(2,3)]
         names(subset)<-c("mProtein", "dProtein")
-        write.csv(subset, paste0("RandomFiles/rPPI",j,".csv"), row.names = FALSE)
+        write.csv(subset, paste0("Randomdata/rPPI",j,".csv"), row.names = FALSE)
       }
-      print("1000 RandomFiles have been created in RandomFiles folder")
-      print("Now mapping random PPI files to potential DMIs")
+      print("1000 Randomdata have been created in Randomdata folder")
+      print("Now mapping random PPI data to potential DMIs")
       #rPPI-DMI Mapping                                                               
       #################################################################################
-      if(file.exists("RandomFiles/randomNumbers.csv")){
-        x<-read.csv("RandomFiles/randomNumbers.csv", sep = ",", header = FALSE)
+      if(file.exists("Randomdata/randomNumbers.csv")){
+        x<-read.csv("Randomdata/randomNumbers.csv", sep = ",", header = FALSE)
         print("randomNumbers file already exists. Will load instead")
       }else {
       for (i in 1:1000) {
-        rPPI <- read.table(paste0("RandomFiles/rPPI", i, ".csv"),
+        rPPI <- read.table(paste0("Randomdata/rPPI", i, ".csv"),
                            stringsAsFactors=FALSE, sep=",", strip.white=TRUE)
         names(rPPI)<-c("mProtein", "dProtein")
         names(Uni_DMI) <- c("mProtein","Motif", "Domain","dProtein")
@@ -179,7 +179,7 @@ load_or_install(c("ggplot2", "visNetwork", "igraph"))
         Matches <- nrow(DMI_rPPI)
         print(paste0("File ",i,": ",Matches))
         
-        output_randomNumbers <- write.table(Matches, "RandomFiles/randomNumbers.csv", col.names = FALSE, append = TRUE, row.names = FALSE)
+        output_randomNumbers <- write.table(Matches, "Randomdata/randomNumbers.csv", col.names = FALSE, append = TRUE, row.names = FALSE)
         
       }
         }
@@ -188,7 +188,7 @@ load_or_install(c("ggplot2", "visNetwork", "igraph"))
     #Step 5: Histogram
     ####################################################
       png(filename="output/Histogram.png", width = 1200, height = 800, units = "px", pointsize = 12)
-      x<-read.csv("RandomFiles/randomNumbers.csv", sep = ",", header = FALSE)
+      x<-read.csv("Randomdata/randomNumbers.csv", sep = ",", header = FALSE)
       names(x) <- "values"
       bins<- seq(min(x), max(x), length.out = 20 + 1)
       h<- hist(x$values, breaks=bins, col = "red", border = 'black', main="Distribution of Random DMIs", ylab="Frequency of Random DMIs",
