@@ -2,19 +2,20 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.3
+# Version: 1.0.5
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
 ##############################
 #Version History
 ##############################
-#****************This is the server version of the App. It doesn't download randomized files or matches file.******************# 
 #V1.0.1 - Added code for checking whether packages installed. (Removes manual step)
 #V1.0.2 - Better naming conventions in code
 #V1.0.3 - Added titles/captions to data tables (uploaded files).
 #       - Improved summary bar chart (used plotly), 
 #       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
+#V1.0.4 - Checks whether any of the random files is missing and creates if not present.
+#V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
 ##############################
 
 ##############################
@@ -84,7 +85,8 @@ if (interactive()) {
       # MainPanel
       mainPanel(
         #Creates a seperate window (pop up window)
-        #bsModal("Hist", "Histogram", "go", size = "large", plotOutput("plot"),  downloadButton("downloadPlot", "Download")),
+        #Creates a seperate window (pop up window)
+        bsModal("DisE", "ELM Distribution", "godis", size = "large", plotlyOutput("diselmchart")),
         #Tab view
         tabsetPanel(type="tabs",
                     tabPanel("Uploaded Data",
@@ -132,11 +134,17 @@ if (interactive()) {
                           tags$h4(tags$strong("Select width/height to download plot as png")),
                           
                           div(id="txtbox",numericInput("width", label = "Width ", value = 1200)),
-                          div(id="txtbox",numericInput("height", label = "Height ", value = 700))
+                          div(id="txtbox",numericInput("height", label = "Height ", value = 700)),
+                          tags$hr(),
                           
+                          tags$h4(tags$strong("Download Randomized data")),
+                          downloadButton('downloadrandom', 'Download')
                           
                           
                       )),
+                    tabPanel("Distribution of ELMs",
+                             DT::dataTableOutput("diselmsdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godis", "Interactive View"))
+                    ),
                     tabPanel("Network",fluidPage(tags$br(), selectInput("selectlayout", label = "Select Layout",
                                                                         choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
                                                                         selected = "layout_in_circle"),
@@ -607,6 +615,148 @@ if (interactive()) {
         summaryStat()
       }
     })
+    #Step 4: Distribution of ELMs in the Predicted DMIs
+    #####################################################
+    #*************************************************************************************
+    disELMs <- eventReactive(input$run, {
+      MotifFile<-input$Motif
+      PPIFile<-input$PPI
+      validate(
+        need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
+      )
+      validate(
+        need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
+      )
+      validate(
+        need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
+      )
+      #File upload check
+      DomainFile<-input$domain
+      if(is.null(DomainFile)){
+        dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      }
+      
+      else{
+        dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      }
+      MotifDomainFile<-input$MotifDomain
+      if(is.null(MotifDomainFile)){
+        Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+        
+      }
+      else{
+        Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      }
+      
+      predictedDMIs()
+      
+      df_pred <- data.frame(table(predDMIs$ELM))
+      #unique_pelms <- unique(df_pred)
+      names(df_pred) <- "ELM"
+      print(df_pred)
+      for (i in 1:length(df_pred)) {
+        Matches <- count(df_pred)
+        names(Matches) <- "Frequency"
+        #col <- cbind(df_pred,newcol)
+        print(Matches)
+        #
+        
+      }
+      df_pred2 <- data.frame(Matches)[,(1:2)]
+      names(df_pred2) <- c("ELM","Freq")
+      print(df_pred2)
+      
+      df_pred2
+    })
+    
+    output$diselmsdata <-DT::renderDataTable({
+      #Run only if Run button is active
+      if(input$run){
+        #Progress bar
+        style <- isolate(input$style)
+        
+        # Create a Progress object
+        progress <- shiny::Progress$new(style = style)
+        progress$set(message = "Generating Data", value = 0)
+        # Close the progress when this reactive exits (even if there's an error)
+        on.exit(progress$close())
+        
+        # Create a closure to update progress.
+        # Each time this is called:
+        # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
+        #   distance. If non-NULL, it will set the progress to that value.
+        # - It also accepts optional detail text.
+        updateProgress <- function(value = NULL, detail = NULL) {
+          if (is.null(value)) {
+            value <- progress$getValue()
+            value <- value + (progress$getMax() - value) / 5
+          }
+          progress$set(value = value, detail = "ELM distribution")
+        }
+        
+        # Compute the new data, and pass in the updateProgress function so
+        # that it can update the progress indicator.
+        compute_data(updateProgress)
+        
+        disELMs()
+        
+      }
+    })
+    displotfunc <- function(){
+      disELMs()
+      disdmi <- data.frame(
+        Datatype = factor(df_pred2$ELM),
+        Numbers = df_pred2$Freq
+      )
+      #Frequency <- df_pred2$Freq
+      #ELMs_names <- df_pred2$ELM
+      #write.csv(df_pred2, "ELMs.csv", row.names = FALSE)
+      # A basic box with the conditions colored
+      #ggplot(df_pred2, aes(depth, fill = cut)) +
+      # geom_density(position = "stack")
+      
+      p <- ggplot(data=statdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
+        geom_bar(colour="black", stat="identity") +
+        guides(fill=FALSE)+
+        theme(axis.title.x=element_blank(),
+              axis.text.x=element_blank(),
+              axis.ticks.x=element_blank())
+      
+      p <- ggplotly(p)
+      
+    }
+    
+    output$diselmchart <- renderPlotly({
+      #Run only if Run button is active
+      if(input$godis){
+        #Progress bar
+        style <- isolate(input$style)
+        
+        # Create a Progress object
+        progress <- shiny::Progress$new(style = style)
+        progress$set(message = "Generating Chart", value = 0)
+        # Close the progress when this reactive exits (even if there's an error)
+        on.exit(progress$close())
+        
+        # Create a closure to update progress.
+        # Each time this is called:
+        # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
+        #   distance. If non-NULL, it will set the progress to that value.
+        # - It also accepts optional detail text.
+        updateProgress <- function(value = NULL, detail = NULL) {
+          if (is.null(value)) {
+            value <- progress$getValue()
+            value <- value + (progress$getMax() - value) / 5
+          }
+          progress$set(value = value, detail = "Generating interactive view")
+        }
+        
+        # Compute the new data, and pass in the updateProgress function so
+        # that it can update the progress indicator.
+        compute_data(updateProgress)
+        displotfunc()
+      }
+    })
 
   #####################################################Enrichment Analysis####################################################
   #*********************************************************************************************************************************
@@ -614,7 +764,7 @@ if (interactive()) {
 
   #*************************************************************************************
 
-  #Step 4: rPPI-DMI Mapping
+  #Step 5: rPPI-DMI Mapping
   ####################################################
   #This step generates 1000 random files and then compares each file with the potential DMIs dataset to generate a list of numbers (matches found in each PPI file).
   #Randomized files will be stored in a new directory created in App folder named as "RandomFiles" and can be accessed later if required.
@@ -741,7 +891,7 @@ if (interactive()) {
   })
   #*************************************************************************************
 
-  #Step 5: Histogram
+  #Step 6: Histogram
   ####################################################
   
     output$histogram <- renderPlot({
@@ -864,7 +1014,7 @@ if (interactive()) {
 
   #*************************************************************************************
 
-  #Step 6: DMI Network
+  #Step 7: DMI Network
   ####################################################
   mynetwork <- function(){
     set.seed(20)
@@ -1031,6 +1181,13 @@ if (interactive()) {
       png(file, width = input$width, height = input$height, units = "px", pointsize = 12)
       plotInput()
       dev.off()
+    }
+  )
+  #download button to download the plot
+  output$downloadrandom <- downloadHandler(
+    filename = "predDMIs.csv",
+    content = function(file) {
+      write.csv(predictedDMIs(), file)
     }
   )
   })
