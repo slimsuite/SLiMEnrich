@@ -292,7 +292,7 @@ server <- shinyServer(function(input, output, session){
     names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
     #print(Uni_DMI)
     
-    #vhPPI-DMI Mapping
+    #PPI-DMI Mapping
     ########################################################################
     names(PPI2) <- c("mProtein", "dProtein")
     predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
@@ -390,7 +390,7 @@ server <- shinyServer(function(input, output, session){
     #Named the header of output file
     names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
     #print(Uni_DMI)
-    #vhPPI-DMI Mapping
+    #PPI-DMI Mapping
     ########################################################################
     names(PPI2) <- c("mProtein", "dProtein")
     predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
@@ -495,24 +495,49 @@ server <- shinyServer(function(input, output, session){
       Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
     }
     
-    predictedDMIs()
-    
-    df_pred <- data.frame(table(predDMIs$ELM))
-    #unique_pelms <- unique(df_pred)
-    names(df_pred) <- "ELM"
+    #Read uploaded files
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    names(Motif) <- c("UniprotID","Motif")
+    Motif_NR<-unique(Motif)
+    PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    #Rename the columns in two files
+    names( Motif_NR) <- c("Seq", "Motif")
+    names(Domain) <- c("Motif", "Domain")
+    #Join/Merge two files based on Motif
+    Join <- merge( Motif_NR, Domain, by="Motif")
+    #print(Join)
+    names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
+    #Load mProtein_Motif_Domain file (result file from the previous code)
+    names(dProtein) <- c("Domains", "dProteins")
+    #joined both files based on Domains
+    DMI <- merge(Join, dProtein,by="Domains")
+    #Filtered unique DMIs
+    Uni_DMI <- unique(DMI)
+    #Named the header of output file
+    names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+    #PPI-DMI Mapping
+    ########################################################################
+    names(PPI2) <- c("mProtein", "dProtein")
+    predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
+    Uni_predDMIs <- unique(predDMI)
+    names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+    #predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
+    df_pred <- data.frame(Uni_predDMIs)["Motif"]
+    names(df_pred) <- "Motif"
     print(df_pred)
     for (i in 1:length(df_pred)) {
       Matches <- count(df_pred)
-      names(Matches) <- "Frequency"
+      #names(Matches) <- "Frequency"
       #col <- cbind(df_pred,newcol)
       print(Matches)
       #
       
     }
     df_pred2 <- data.frame(Matches)[,(1:2)]
-    names(df_pred2) <- c("ELM","Freq")
+    names(df_pred2) <- c("ELM","Frequency")
     print(df_pred2)
-    
+    Frequency <- df_pred2$Freq
+    ELMs_names <- df_pred2$ELM
     df_pred2
   })
   
@@ -562,7 +587,7 @@ server <- shinyServer(function(input, output, session){
     #ggplot(df_pred2, aes(depth, fill = cut)) +
     # geom_density(position = "stack")
     
-    p <- ggplot(data=statdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
+    p <- ggplot(data=disdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
       geom_bar(colour="black", stat="identity") +
       guides(fill=FALSE)+
       theme(axis.title.x=element_blank(),
@@ -940,7 +965,7 @@ mynetwork <- function(){
     names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
     #print(Uni_DMI)
     
-    #vhPPI-DMI Mapping
+    #PPI-DMI Mapping
     ########################################################################
     names(PPI2) <- c("mProtein", "dProtein")
     predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
