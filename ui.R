@@ -21,24 +21,11 @@
 ##############################
 #Required Libraries
 ##############################
-# Check whether packages of interest are installed
-is_installed = function(mypkg) is.element(mypkg, installed.packages()[,1]) 
-# Install library if not already installed
-# Run a for-loop of all the package names listed below in the function call
-# with the list of packages: load_or_install(c("pkg1", "pkg2",..., "pkgn"))
-load_or_install = function(package_names) 
+package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr")
+for(package_name in package_names) 
 { 
-  for(package_name in package_names) 
-  { 
-    if(!is_installed(package_name)) 
-    { 
-      #install.packages(package_name,repos="http://lib.stat.cmu.edu/R/CRAN") 
-      install.packages(package_name)
-    } 
-    library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
-  } 
-}
-load_or_install(c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr"))
+  library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
+} 
 
 ##############################
 #GUI of the App
