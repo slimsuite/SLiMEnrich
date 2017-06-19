@@ -15,9 +15,8 @@
 #       - Improved summary bar chart (used plotly), 
 #       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
 #V1.0.4 - Checks whether any of the random files is missing and creates if not present.
-#V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as interactive view.
+#V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
 ##############################
-
 
 ##############################
 #Required Libraries
@@ -656,24 +655,49 @@ server <- shinyServer(function(input, output, session){
       Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
     }
     
-    predictedDMIs()
-    
-    df_pred <- data.frame(table(predDMIs$ELM))
-    #unique_pelms <- unique(df_pred)
-    names(df_pred) <- "ELM"
+    #Read uploaded files
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    names(Motif) <- c("UniprotID","Motif")
+    Motif_NR<-unique(Motif)
+    PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    #Rename the columns in two files
+    names( Motif_NR) <- c("Seq", "Motif")
+    names(Domain) <- c("Motif", "Domain")
+    #Join/Merge two files based on Motif
+    Join <- merge( Motif_NR, Domain, by="Motif")
+    #print(Join)
+    names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
+    #Load mProtein_Motif_Domain file (result file from the previous code)
+    names(dProtein) <- c("Domains", "dProteins")
+    #joined both files based on Domains
+    DMI <- merge(Join, dProtein,by="Domains")
+    #Filtered unique DMIs
+    Uni_DMI <- unique(DMI)
+    #Named the header of output file
+    names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+    #PPI-DMI Mapping
+    ########################################################################
+    names(PPI2) <- c("mProtein", "dProtein")
+    predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
+    Uni_predDMIs <- unique(predDMI)
+    names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+    #predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
+    df_pred <- data.frame(Uni_predDMIs)["Motif"]
+    names(df_pred) <- "Motif"
     print(df_pred)
     for (i in 1:length(df_pred)) {
       Matches <- count(df_pred)
-      names(Matches) <- "Frequency"
+      #names(Matches) <- "Frequency"
       #col <- cbind(df_pred,newcol)
       print(Matches)
       #
       
     }
     df_pred2 <- data.frame(Matches)[,(1:2)]
-    names(df_pred2) <- c("ELM","Freq")
+    names(df_pred2) <- c("ELM","Frequency")
     print(df_pred2)
-   
+    Frequency <- df_pred2$Freq
+    ELMs_names <- df_pred2$ELM
     df_pred2
   })
   
@@ -723,7 +747,7 @@ server <- shinyServer(function(input, output, session){
     #ggplot(df_pred2, aes(depth, fill = cut)) +
     # geom_density(position = "stack")
     
-    p <- ggplot(data=statdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
+    p <- ggplot(data=disdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
       geom_bar(colour="black", stat="identity") +
       guides(fill=FALSE)+
       theme(axis.title.x=element_blank(),
@@ -734,37 +758,37 @@ server <- shinyServer(function(input, output, session){
     
   }
   
-output$diselmchart <- renderPlotly({
-  #Run only if Run button is active
-  if(input$godis){
-    #Progress bar
-    style <- isolate(input$style)
-    
-    # Create a Progress object
-    progress <- shiny::Progress$new(style = style)
-    progress$set(message = "Generating Chart", value = 0)
-    # Close the progress when this reactive exits (even if there's an error)
-    on.exit(progress$close())
-    
-    # Create a closure to update progress.
-    # Each time this is called:
-    # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-    #   distance. If non-NULL, it will set the progress to that value.
-    # - It also accepts optional detail text.
-    updateProgress <- function(value = NULL, detail = NULL) {
-      if (is.null(value)) {
-        value <- progress$getValue()
-        value <- value + (progress$getMax() - value) / 5
+  output$diselmchart <- renderPlotly({
+    #Run only if Run button is active
+    if(input$godis){
+      #Progress bar
+      style <- isolate(input$style)
+      
+      # Create a Progress object
+      progress <- shiny::Progress$new(style = style)
+      progress$set(message = "Generating Chart", value = 0)
+      # Close the progress when this reactive exits (even if there's an error)
+      on.exit(progress$close())
+      
+      # Create a closure to update progress.
+      # Each time this is called:
+      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
+      #   distance. If non-NULL, it will set the progress to that value.
+      # - It also accepts optional detail text.
+      updateProgress <- function(value = NULL, detail = NULL) {
+        if (is.null(value)) {
+          value <- progress$getValue()
+          value <- value + (progress$getMax() - value) / 5
+        }
+        progress$set(value = value, detail = "Generating interactive view")
       }
-      progress$set(value = value, detail = "Generating interactive view")
+      
+      # Compute the new data, and pass in the updateProgress function so
+      # that it can update the progress indicator.
+      compute_data(updateProgress)
+      displotfunc()
     }
-    
-    # Compute the new data, and pass in the updateProgress function so
-    # that it can update the progress indicator.
-    compute_data(updateProgress)
-  displotfunc()
-  }
-})
+  })
   
   #####################################################Enrichment Analysis####################################################
   #*********************************************************************************************************************************
