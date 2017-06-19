@@ -622,7 +622,7 @@ server <- shinyServer(function(input, output, session){
    summaryStat()
     }
   })
-  #Step 4: Distribution of ELMs in the Predicted DMIs
+ #Step 4: Distribution of ELMs in the Predicted DMIs
   #####################################################
   #*************************************************************************************
   disELMs <- eventReactive(input$run, {
@@ -694,10 +694,11 @@ server <- shinyServer(function(input, output, session){
       
     }
     df_pred2 <- data.frame(Matches)[,(1:2)]
-    names(df_pred2) <- c("ELM","Frequency")
+    names(df_pred2) <- c("ELM","Freq")
     print(df_pred2)
     Frequency <- df_pred2$Freq
     ELMs_names <- df_pred2$ELM
+    df_pred2 <- data.frame(ELMs_names,Frequency)
     df_pred2
   })
   
@@ -735,7 +736,79 @@ server <- shinyServer(function(input, output, session){
     }
   })
   displotfunc <- function(){
-    disELMs()
+    MotifFile<-input$Motif
+    PPIFile<-input$PPI
+    validate(
+      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
+    )
+    validate(
+      need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
+    )
+    validate(
+      need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
+    )
+    #File upload check
+    DomainFile<-input$domain
+    if(is.null(DomainFile)){
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+    }
+    
+    else{
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+    }
+    MotifDomainFile<-input$MotifDomain
+    if(is.null(MotifDomainFile)){
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      
+    }
+    else{
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+    }
+    
+    #Read uploaded files
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    names(Motif) <- c("UniprotID","Motif")
+    Motif_NR<-unique(Motif)
+    PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    #Rename the columns in two files
+    names( Motif_NR) <- c("Seq", "Motif")
+    names(Domain) <- c("Motif", "Domain")
+    #Join/Merge two files based on Motif
+    Join <- merge( Motif_NR, Domain, by="Motif")
+    #print(Join)
+    names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
+    #Load mProtein_Motif_Domain file (result file from the previous code)
+    names(dProtein) <- c("Domains", "dProteins")
+    #joined both files based on Domains
+    DMI <- merge(Join, dProtein,by="Domains")
+    #Filtered unique DMIs
+    Uni_DMI <- unique(DMI)
+    #Named the header of output file
+    names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+    #PPI-DMI Mapping
+    ########################################################################
+    names(PPI2) <- c("mProtein", "dProtein")
+    predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
+    Uni_predDMIs <- unique(predDMI)
+    names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+    #predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
+    df_pred <- data.frame(Uni_predDMIs)["Motif"]
+    names(df_pred) <- "Motif"
+    print(df_pred)
+    for (i in 1:length(df_pred)) {
+      Matches <- count(df_pred)
+      #names(Matches) <- "Frequency"
+      #col <- cbind(df_pred,newcol)
+      print(Matches)
+      #
+      
+    }
+    df_pred2 <- data.frame(Matches)[,(1:2)]
+    names(df_pred2) <- c("ELM","Freq")
+    print(df_pred2)
+    Frequency <- df_pred2$Freq
+    ELMs_names <- df_pred2$ELM
+    df_pred2 <- data.frame(ELMs_names,Frequency)
     disdmi <- data.frame(
       Datatype = factor(df_pred2$ELM),
       Numbers = df_pred2$Freq
