@@ -112,11 +112,10 @@ ui <- shinyUI(navbarPage(div(id="title", ("SLiMEnrich")), tabPanel("Domain-Motif
                         tags$h4(tags$strong("Select width/height to download plot as png")),
                         
                         div(id="txtbox",numericInput("width", label = "Width ", value = 1200)),
-                        div(id="txtbox",numericInput("height", label = "Height ", value = 700)),
-                        tags$hr(),
+                        div(id="txtbox",numericInput("height", label = "Height ", value = 700))
                         
-                        tags$h4(tags$strong("Download Randomized data")),
-                        downloadButton('downloadrandom', 'Download')
+                        
+                     
                         
                         
                     )),
