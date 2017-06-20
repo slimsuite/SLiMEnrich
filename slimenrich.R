@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.1
+# Version: 1.0.2
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -10,11 +10,13 @@
 #Version History
 ##############################
 #V1.0.1 - Generic naming
+#V1.0.2-  Added commandline arguments to select files
 ##############################
 
 ##############################
 #Required Libraries
 ##############################
+#!/usr/bin/env Rscript
 # Check whether packages of interest are installed
 is_installed = function(mypkg) is.element(mypkg, installed.packages()[,1]) 
 # Install library if not already installed
@@ -32,85 +34,123 @@ load_or_install = function(package_names)
     library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
   } 
 }
-load_or_install(c("ggplot2", "visNetwork", "igraph"))
+load_or_install(c("ggplot2", "visNetwork", "igraph","optparse"))
+##########################################################################
+## Options
+# Commandline arguments
+##########################################################################
+option_list = list(
+  #SLiMs file 
+  make_option(c("-s", "--mfile"), type="character", default=NULL, 
+              help="dataset file name", metavar="character"),
+  #Domain file
+  make_option(c("-d", "--dFile"), type="character", default=NULL, 
+              help="dataset file name", metavar="character"),
+  #Motif-Domain file
+  make_option(c("-m", "--mdFile"), type="character", default=NULL, 
+              help="dataset file name", metavar="character"),
+  #PPI file
+  make_option(c("-p", "--pFile"), type="character", default=NULL, 
+              help="dataset file name", metavar="character")
+); 
+
+opt_parser = OptionParser(option_list=option_list);
+opt = parse_args(opt_parser)
+
 #########################################################################
 
 #*************************************************************************************
 #Step 1: Potential DMIs
 ####################################################
-      #Read uploaded data
-      Motif<-read.csv("data/slimprob.occ.csv",header=TRUE,sep=",")[,c('AccNum','Motif')]
-      Motif_NR<-unique(Motif)
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
-      #Motif-Domain Mapping                                            
-      #Rename the columns in two data
-      names(Motif_NR) <- c("Seq", "Motif")
-      names(Domain) <- c("Motif", "Domain")
-      #Join/Merge two data based on Motif                 
-      Join <- merge(Motif_NR, Domain, by="Motif")
-      #print(Join)
-      names(Join) <- c("Motif", "Seq", "Domain")  #Change header of the output file
-      #Domain-dProtein Mapping                                       
-      #Load results from the previous code)
-      names(dProtein) <- c("Domain", "dProteins")
-      #joined both data based on Domain
-      DMI <- merge(Join, dProtein,by="Domain")
-      #Filtered unique DMIs
-      Uni_DMI <- unique(DMI)
-      #Named the header of output file
-      names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
-      Uni_DMI <- Uni_DMI[, c("mProtein","Motif", "Domain", "dProtein")]
-      #print(Uni_DMI)
-      dir.create("output")
-      output_potentialDMIs <- write.csv(Uni_DMI, "output/potentialDMIs.csv", row.names = FALSE)
-      print("potentialDMIs.csv file has been saved in output folder")
-    #*************************************************************************************
-    
-    #Step 2: Predicted DMIs
-    ####################################################
-      #PPI-DMI Mapping                                                         
-      ########################################################################
-      PPI2<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
-      names(PPI2) <- c("mProtein", "dProtein")
-      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-      Uni_predDMIs <- unique(predDMI)
-      names(Uni_predDMIs) <- c("mProtein", "dProtein", "Motif", "Domain")
-      predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-      #print(predDMIs)    
-      output_predictedDMIs <- write.csv(predDMIs, "output/predictedDMIs.csv", row.names = FALSE)
-      print("predictedDMIs.csv file has been saved in output folder")
-    
-    #*************************************************************************************
-    
-    #Step 3: Statistics
-    ####################################################
-        
-        png(filename="output/summaryStats.png")
-        colors=c("cadetblue1", "deepskyblue2", "blue", "darkblue")
-        #Select unique Motifs
-        uniq_motif <- unique(predDMI$Motif)
-        a <- length(uniq_motif)
-        #Select unique Domain
-        uniq_domain <- unique(predDMI$domain)
-        b <- length(uniq_domain)
-        #Select unique mProtein
-        uniq_mprotein <- unique(predDMI$mProtein)
-        c <- length(uniq_mprotein)
-        #Select unique dproteins
-        uniq_dprotein <- unique(predDMI$dProtein)
-        d <- length(uniq_dprotein)
-        uniq_count<-c(a = length(uniq_motif), b = length(uniq_domain), c = length(uniq_mprotein), d = length(uniq_dprotein))
-        #Create pie chart
-        x <- c(a,b,c,d)
-        #Label names for the chart
-        labels <- c("Motif", "Domain", "mProtein", "dProtein")
-        #Created bar char of the unique values
-        barplot(x, main="Statistics of DMIs", col = colors)
-        legend("topright", 
-               legend = c(paste("Motifs=",a),paste("Domains=",b),paste("mProteins=",c),paste("dProteins=",d)), fill = colors)
-        print("Summary Statistics Bar chart has been saved in output folder")
-        dev.off()
+#Read uploaded data
+Motif<-read.csv(opt$mfile,header=TRUE,sep=",")[,c('AccNum','Motif')]
+Motif_NR<-unique(Motif)
+#If motif-domain file is not uploaded then read from data folder
+if(is.null(opt$mdFile)){
+  Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+}else{
+  Domain<-read.csv(opt$mdFile,header=TRUE,sep="\t")[,c(1:2)]
+}
+#If domain file is not uploaded then read from data folder
+if(is.null(opt$dFile)){
+  dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
+}else{
+  dProtein<-read.csv(opt$dFile,header=TRUE,sep=",")[,c('pfam','accnum')]
+}
+#Motif-Domain Mapping                                            
+#Rename the columns in two data
+names(Motif_NR) <- c("Seq", "Motif")
+names(Domain) <- c("Motif", "Domain")
+#Join/Merge two data based on Motif                 
+Join <- merge(Motif_NR, Domain, by="Motif")
+#print(Join)
+names(Join) <- c("Motif", "Seq", "Domain")  #Change header of the output file
+#Domain-dProtein Mapping                                       
+#Load results from the previous code)
+names(dProtein) <- c("Domain", "dProteins")
+writeLines("Finding potential DMIs...", sep="\n")
+#joined both data based on Domain
+DMI <- merge(Join, dProtein,by="Domain")
+#Filtered unique DMIs
+Uni_DMI <- unique(DMI)
+#Named the header of output file
+names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+Uni_DMI <- Uni_DMI[, c("mProtein","Motif", "Domain", "dProtein")]
+print(Uni_DMI)
+dir.create("output")
+print("A directory named output has been created in the current working directory")
+output_potentialDMIs <- write.csv(Uni_DMI, "output/potentialDMIs.csv", row.names = FALSE)
+print("potentialDMIs.csv file has been saved in output folder")
+
+#*************************************************************************************
+
+#Step 2: Predicted DMIs
+####################################################
+#PPI-DMI Mapping                                                         
+########################################################################
+
+PPI2<-read.csv(opt$pFile,header=TRUE,sep=",")
+names(PPI2) <- c("mProtein", "dProtein")
+writeLines("Finding predicted DMIs...", sep="\n")
+predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
+Uni_predDMIs <- unique(predDMI)
+names(Uni_predDMIs) <- c("mProtein", "dProtein", "Motif", "Domain")
+predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
+print(predDMIs)    
+output_predictedDMIs <- write.csv(predDMIs, "output/predictedDMIs.csv", row.names = FALSE)
+print("predictedDMIs.csv file has been saved in output folder")
+
+#*************************************************************************************
+
+#Step 3: Statistics
+####################################################
+writeLines("Calculating number of mProteins, motifs, domains and dProteins...", sep="\n")
+png(filename="output/summaryStats.png")
+colors=c("cadetblue1", "deepskyblue2", "blue", "darkblue")
+#Select unique Motifs
+uniq_motif <- unique(predDMI$Motif)
+a <- length(uniq_motif)
+#Select unique Domain
+uniq_domain <- unique(predDMI$Domain)
+b <- length(uniq_domain)
+#Select unique mProtein
+uniq_mprotein <- unique(predDMI$mProtein)
+c <- length(uniq_mprotein)
+#Select unique dproteins
+uniq_dprotein <- unique(predDMI$dProtein)
+d <- length(uniq_dprotein)
+uniq_count<-c(a = length(uniq_motif), b = length(uniq_domain), c = length(uniq_mprotein), d = length(uniq_dprotein))
+#Create pie chart
+x <- c(a,b,c,d)
+#Label names for the chart
+labels <- c("Motif", "Domain", "mProtein", "dProtein")
+#Created bar char of the unique values
+barplot(x, main="Statistics of DMIs", col = colors)
+legend("topright", 
+       legend = c(paste("Motifs=",a),paste("Domains=",b),paste("mProteins=",c),paste("dProteins=",d)), fill = colors)
+print("Summary Statistics Bar chart has been saved in output folder")
+dev.off()
+
      
     #####################################################Enrichment Analysis####################################################
     #*********************************************************************************************************************************
