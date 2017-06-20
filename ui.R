@@ -101,6 +101,8 @@ ui <- shinyUI(navbarPage(div(id="title", ("SLiMEnrich")), tabPanel("Domain-Motif
                         div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Numbers of random DMIs")),
                         tags$style(type="text/css", "#txtbox {display: inline-block; max-width: 200px; }"),
                         div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
+                        div(id="txtbox",numericInput("xlimstart", label = "X-axis Start",0)),
+                        div(id="txtbox",numericInput("xlimend", label = "X-axis End",500)),
                         tags$hr(),
                         tags$h4(tags$strong("Select Colors")),
                         
