@@ -902,7 +902,7 @@ server <- shinyServer(function(input, output, session){
   bins<- seq(min(x), max(x), length.out = input$bins + 1)
   par(bg=input$col2)
   h<- hist(x$values, breaks=bins, col = input$col, border = 'black', main=input$text3, ylab=input$text2,
-           xlab=input$text, xlim = c(0, max(x)+100), labels = input$barlabel, cex.main=1.5, cex.lab=1.5,cex.axis=1.5)
+             xlab=input$text, xlim = c( input$xlimstart,  input$xlimend), labels = input$barlabel, cex.main=1.5, cex.lab=1.5,cex.axis=1.5)
   xfit <- seq(min(x$values),max(x$values),length=40)
   
   yfit <- dnorm(xfit, mean=mean(x$values),sd=sd(x$values))
