@@ -124,7 +124,7 @@ ui <- shinyUI(navbarPage(div(id="title", ("SLiMEnrich")), tabPanel("Domain-Motif
                   ),
                   tabPanel("Network",fluidPage(tags$br(), selectInput("selectlayout", label = "Select Layout",
                                                                       choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
-                                                                      selected = "layout_in_circle"),
+                                                                      selected = "layout_in_circle"),img(src='key.png', align = "right"),
                                                
                                                
                                                hr(),
