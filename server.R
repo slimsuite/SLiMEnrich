@@ -922,11 +922,11 @@ server <- shinyServer(function(input, output, session){
   arrows(nrow(predictedDMIs()), 480, nrow(predictedDMIs()), 0, lwd = 2, col = "black", length = 0.1, lty = 3)
   pvalue <-  paste0("<b>P-value is: </b>", length(x[x >= nrow(predictedDMIs())])/1000)
   meanvalue <- paste0("<b>Mean is: </b>", round(mean(x$values)))
-  FDR <- paste0("<b>False Discrovery Rate is: </b>", round(mean(x$values)/nrow(predictedDMIs()),2))
+  Escore <- paste0("<b>Enrichment score (E-score) is: </b>", round(nrow(predictedDMIs())/mean(x$values),2))
   output$summary <- renderUI({
-    
-    HTML(paste("<font color=\"#FF0000\"><b>Summary of Histogram</b></font>", pvalue, meanvalue, FDR, sep = '<hr/>'))
-    
+
+    HTML(paste("<font color=\"#FF0000\"><b>Summary of Histogram</b></font>", pvalue, meanvalue, Escore, sep = '<hr/>'))
+
   })
 }
 compute_data <- function(updateProgress = NULL) {
@@ -1092,7 +1092,7 @@ mynetwork <- function(){
       E(g5)$color <- "black"
       E(g)$width <- 9
       g6 <- visIgraph(g5,layout = input$selectlayout, physics = FALSE, smooth = TRUE, type = "square")
-      visExport(g6, type = "png", name = "export-network",float = "left", label = "Save network", background = "white", style= "")
+      #visExport(g6, type = "png", name = "export-network",float = "left", label = "Save network", background = "white", style= "")
       
     }
   }
