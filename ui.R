@@ -31,7 +31,7 @@ for(package_name in package_names)
 #GUI of the App
 ##############################
 #navbar page with sidebar layout along with tabsets
-ui <- shinyUI(navbarPage(div(id="title", ("SLiMEnrich")), tabPanel("Domain-Motif Interactions", tags$head(
+ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnrich", tabPanel("Domain-Motif Interactions", tags$head(
   tags$style(HTML("
                   .shiny-output-error-validation {
                   color: red;
@@ -144,9 +144,8 @@ ui <- shinyUI(navbarPage(div(id="title", ("SLiMEnrich")), tabPanel("Domain-Motif
   
   
   
-  tabPanel("Getting Started"),tabPanel("Instructions", fluidPage(
-    includeMarkdown("doc/instructions.Rmd")
-  )), useShinyjs(),theme = shinytheme("sandstone"),
+  tabPanel(HTML("</a></li><li><a href=\"https://github.com/slimsuite/SLiMEnrich/wiki/Quick-Tutorial\", target = _blank>Getting Started")),tabPanel(HTML("</a></li><li><a href=\"https://github.com/slimsuite/SLiMEnrich/wiki\", target = _blank>Instructions"
+                         )), useShinyjs(),theme = shinytheme("sandstone"),
   tags$style(type="text/css", "#title {font-family: 'Impact', cursive;
              font-size: 32px;
              font-style:italic;
