@@ -923,9 +923,10 @@ server <- shinyServer(function(input, output, session){
   pvalue <-  paste0("<b>P-value is: </b>", length(x[x >= nrow(predictedDMIs())])/1000)
   meanvalue <- paste0("<b>Mean is: </b>", round(mean(x$values)))
   Escore <- paste0("<b>Enrichment score (E-score) is: </b>", round(nrow(predictedDMIs())/mean(x$values),2))
-  output$summary <- renderUI({
+  FDR <- paste0("<b>False Discrovery Rate is: </b>", round(mean(x$values)/nrow(predictedDMIs()),2))
+    output$summary <- renderUI({
 
-    HTML(paste("<font color=\"#FF0000\"><b>Summary of Histogram</b></font>", pvalue, meanvalue, Escore, sep = '<hr/>'))
+    HTML(paste("<font color=\"#FF0000\"><b>Summary of Histogram</b></font>", pvalue, meanvalue, Escore, FDR, sep = '<hr/>'))
 
   })
 }
