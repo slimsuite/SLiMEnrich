@@ -16,6 +16,7 @@
 #       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
 #V1.0.4 - Checks whether any of the random files is missing and creates if not present.
 #V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
+#V1.0.6 - Added p-values of ELMs in ELM distribution tab
 ##############################
 
 ##############################
@@ -525,7 +526,7 @@ server <- shinyServer(function(input, output, session){
     df_pred <- data.frame(Uni_predDMIs)["Motif"]
     names(df_pred) <- "Motif"
     print(df_pred)
-    for (i in 1:length(df_pred)) {
+        for (i in 1:length(df_pred)) {
       Matches <- count(df_pred)
       #names(Matches) <- "Frequency"
       #col <- cbind(df_pred,newcol)
@@ -533,13 +534,17 @@ server <- shinyServer(function(input, output, session){
       #
       
     }
+  
     df_pred2 <- data.frame(Matches)[,(1:2)]
     names(df_pred2) <- c("ELM","Freq")
     print(df_pred2)
     Frequency <- df_pred2$Freq
     ELMs_names <- df_pred2$ELM
     df_pred2 <- data.frame(ELMs_names,Frequency)
-    df_pred2
+    pvalueelm <- round(df_pred2$Frequency/nrow(df_pred2),2)
+    pvaluecol <- cbind(df_pred2,pvalueelm)
+    names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
+    pvaluecol
   })
   
   output$diselmsdata <-DT::renderDataTable({
