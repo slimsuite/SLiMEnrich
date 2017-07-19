@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.5
+# Version: 1.0.6
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
