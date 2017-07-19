@@ -16,7 +16,7 @@
 #       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
 #V1.0.4 - Checks whether any of the random files is missing and creates if not present.
 #V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
-#V1.0.6 - Added p-values of ELMs in ELM distribution tab
+#V1.0.6 - Added p-values, GOTerms and Biological function of ELMs in ELM distribution tab
 ##############################
 
 ##############################
@@ -497,6 +497,8 @@ server <- shinyServer(function(input, output, session){
     }
     
     #Read uploaded files
+    GOterms <- read.csv("data/elm_goterms.tsv",header=TRUE,sep="\t")
+    names(GOterms) <- c("ELM", "GO Term", "Biological Function")
     Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
@@ -544,7 +546,8 @@ server <- shinyServer(function(input, output, session){
     pvalueelm <- round(df_pred2$Frequency/nrow(df_pred2),2)
     pvaluecol <- cbind(df_pred2,pvalueelm)
     names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
-    pvaluecol
+    GeneOntology <- merge(pvaluecol,GOterms, by="ELM")
+    GeneOntology
   })
   
   output$diselmsdata <-DT::renderDataTable({
