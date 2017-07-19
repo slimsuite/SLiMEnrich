@@ -16,6 +16,7 @@
 #       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
 #V1.0.4 - Checks whether any of the random files is missing and creates if not present.
 #V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
+#V1.0.6 - Added p-values of ELMs in ELM distribution tab
 ##############################
 
 ##############################
