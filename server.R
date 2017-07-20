@@ -543,7 +543,7 @@ server <- shinyServer(function(input, output, session){
     Frequency <- df_pred2$Freq
     ELMs_names <- df_pred2$ELM
     df_pred2 <- data.frame(ELMs_names,Frequency)
-    pvalueelm <- round(df_pred2$Frequency/nrow(df_pred2),2)
+    pvalueelm <- round(df_pred2$Frequency/nrow(df_pred),2)
     pvaluecol <- cbind(df_pred2,pvalueelm)
     names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
     GeneOntology <- merge(pvaluecol,GOterms, by="ELM")
