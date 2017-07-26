@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.6
+# Version: 1.0.7
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -17,6 +17,7 @@
 #V1.0.4 - Checks whether any of the random files is missing and creates if not present.
 #V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
 #V1.0.6 - Added p-values, GOTerms and Biological function of ELMs in ELM distribution tab
+#V1.0.7 - File headers to lowercase for consistency
 ##############################
 
 ##############################
@@ -67,6 +68,12 @@ server <- shinyServer(function(input, output, session){
     toggle(id = "uploadmotif", anim = TRUE)
   })
   
+  #lowercase function
+  lowername <- function(x) {
+    colnames(x) <- tolower(colnames(x))
+    x
+    
+  }
   #####################################################Domain-Motif Interactions####################################################
   #*********************************************************************************************************************************
   #Uploaded Data
@@ -94,21 +101,25 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      #dProtein <- lowername(dProtein)
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+     # dProtein <- lowername(dProtein)
     }
   })
   inputDataMotifDomain <-eventReactive(input$run, {
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      #Domain <- lowername(Domain)
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      #Domain <- lowername(Domain)
     }
     
   })
@@ -163,22 +174,32 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     
@@ -256,22 +277,32 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     
@@ -355,23 +386,33 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
@@ -481,25 +522,35 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     
     #Read uploaded files
     GOterms <- read.csv("data/elm_goterms.tsv",header=TRUE,sep="\t")
     names(GOterms) <- c("ELM", "GO Term", "Biological Function")
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
@@ -598,23 +649,33 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
@@ -738,25 +799,35 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     observe({
       show(id = "go2")
     })
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     PPI<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
@@ -889,19 +960,27 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     
   #dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
@@ -1011,22 +1090,32 @@ mynetwork <- function(){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
