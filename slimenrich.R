@@ -12,7 +12,15 @@
 #V1.0.1 - Generic naming
 #V1.0.2-  Added commandline arguments to select files
 ##############################
-
+# Argument Description
+#SLiMs file option
+# -s
+#Domain file option
+# -d
+#Motif-Domain file option
+# -m
+#PPI file argument
+# -p
 ##############################
 #Required Libraries
 ##############################
