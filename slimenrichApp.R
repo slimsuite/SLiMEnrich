@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.5
+# Version: 1.0.7
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -16,6 +16,8 @@
 #       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
 #V1.0.4 - Checks whether any of the random files is missing and creates if not present.
 #V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
+#V1.0.6 - Added p-values, GOTerms and Biological function of ELMs in ELM distribution tab
+#V1.0.7 - File headers to lowercase for consistency
 ##############################
 
 ##############################
@@ -55,128 +57,133 @@ load_or_install(c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", 
 ##############################
 if (interactive()) {
 #navbar page with sidebar layout along with tabsets
-ui <- shinyUI(navbarPage(div(id="title", ("SLiMEnrich")), tabPanel("Domain-Motif Interactions", tags$head(
-  tags$style(HTML("
-                  .shiny-output-error-validation {
-                  color: red;
-font-size: 18px;
-font-style: italic;
-font-weight: bold;
--webkit-animation: mymove 5s infinite; /* Chrome, Safari, Opera */
-    animation: mymove 5s infinite;
-                  }
-@-webkit-keyframes mymove {
-    50% {color: black;}
-}
-                  "))
-  ),
-                                                                   # Sidebar
-                                                                   sidebarLayout(
-                                                                     sidebarPanel(
-                                                                       fileInput("PPI","Select Interaction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-
-                                                                       fileInput("Motif","Select SLiM prediction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-                                                                       actionButton("run", "Run", width = "100px"),
-                                                                       div(id="fileuploads",checkboxInput("uploadmotifs",label = "Upload Domain and/or Motif-Domain Files", value = FALSE)),
-                                                                       div(id="uploadmotif",  fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-                                                                           fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')))
-                                                                     ),
-
-                                                                     # MainPanel
-                                                                     mainPanel(
-                                                                       #Creates a seperate window (pop up window)
-                                                                       bsModal("DisE", "ELM Distribution", "godis", size = "large", plotlyOutput("diselmchart")),
-                                                                       
-                                                  
-                                                                       #Tab view
-                                                                       tabsetPanel(type="tabs",
-                                                                                   tabPanel("Uploaded Data",
-                                                                                            fluidRow(
-                                                                                              splitLayout(cellWidths = c("50%", "50%", "50%", "50%"), DT::dataTableOutput("udata2"), DT::dataTableOutput("udata")), DT::dataTableOutput("udata4"), DT::dataTableOutput("udata3")
-                                                                                            )
-                                                                                   ),
-                                                                                   tabPanel("Potential DMIs",
-                                                                                            DT::dataTableOutput("data"),
-                                                                                            tags$hr(),
-                                                                                            downloadButton('downloadDMI', 'Download')
-                                                                                   ),
-
-                                                                                   tabPanel("Predicted DMIs", DT::dataTableOutput("PredDMIs"),tags$hr(),downloadButton('downloadpredDMI', 'Download')),
-
-                                                                                   tabPanel("Statistics", plotlyOutput("plotbar"
-                                                                                   )),
-                                                                                   tabPanel("Histogram", fluidRow(
-                                                                                     splitLayout(cellWidths = c("50%", "50%"), plotOutput("histogram"), htmlOutput("summary"))),
-                                                                                     tags$hr(),
-                                                                                     
-                                                                                     div(id="txtbox",actionButton("setting", "Settings")),
-                                                                                     div(id="txtbox",downloadButton("downloadPlot", "Download")),
-                                                                                     
-                                                                                     div(id="settings", sliderInput("bins", 
-                                                                                                                    "Number of bins",
-                                                                                                                    min= 1,
-                                                                                                                    max = 200,
-                                                                                                                    value = 30),
-                                                                                         tags$hr(),
-                                                                                         tags$h4(tags$strong("Select labels")),
-                                                                                         
-                                                                                         checkboxInput("barlabel", label="Bar Labels", value = FALSE, width = NULL),
-                                                                                         div(id="txtbox", textInput("text3", label = "Main title", value = "Distribution of random DMIs")),
-                                                                                         div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Numbers of random DMIs")),
-                                                                                         tags$style(type="text/css", "#txtbox {display: inline-block; max-width: 200px; }"),
-                                                                                         div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
-                                                                                         tags$hr(),
-                                                                                         tags$h4(tags$strong("Select Colors")),
-                                                                                         
-                                                                                         div(id="txtbox",colourInput("col", "Select bar colour", "deepskyblue1")),
-                                                                                         div(id="txtbox",colourInput("col2", "Select background colour", "white")),
-                                                                                         tags$hr(),
-                                                                                         tags$h4(tags$strong("Select width/height to download plot as png")),
-                                                                                         
-                                                                                         div(id="txtbox",numericInput("width", label = "Width ", value = 1200)),
-                                                                                         div(id="txtbox",numericInput("height", label = "Height ", value = 700))
-                                                                                         
-                                                                                         
-                                                                                         
-                                                                                         
-                                                                                     )),
-                                                                                   tabPanel("Distribution of ELMs",
-                                                                                            DT::dataTableOutput("diselmsdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godis", "Interactive View"))
-                                                                                   ),
-                                                                                   tabPanel("Network",fluidPage(tags$br(), selectInput("selectlayout", label = "Select Layout",
-                                                                                                                             choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
-                                                                                                                             selected = "layout_in_circle"),
-
-
-                                                                                                                 hr(),
-
-                                                                                            visNetworkOutput(outputId = "network",
-                                                                                                             height = "1500px",
-                                                                                                             width = "1500px")
-
-
-                                                                                   )
-                                                                                   )
-
-
-                                                                       )
-                                                                     )
-                                                                   )),
-
-
-
-                         tabPanel("Getting Started"),tabPanel("Instructions", fluidPage(
-                           includeMarkdown("doc/instructions.Rmd")
-                         )), useShinyjs(),theme = shinytheme("sandstone"),
-                  tags$style(type="text/css", "#title {font-family: 'Impact', cursive;
- font-size: 32px;
-                                       font-style:italic;
-                                       font-color: #fff;
-                                       -webkit-text-stroke-width: 1px;
-                                       -webkit-text-stroke-color: black;}")
-
-
-))
+  #navbar page with sidebar layout along with tabsets
+  ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnrich", tabPanel("Domain-Motif Interactions", tags$head(
+    tags$style(HTML("
+                    .shiny-output-error-validation {
+                    color: red;
+                    font-size: 18px;
+                    font-style: italic;
+                    font-weight: bold;
+                    -webkit-animation: mymove 5s infinite; /* Chrome, Safari, Opera */
+                    animation: mymove 5s infinite;
+                    }
+                    @-webkit-keyframes mymove {
+                    50% {color: black;}
+                    }
+                    "))
+    ),
+    # Sidebar
+    sidebarLayout(
+      sidebarPanel(
+        fileInput("PPI","Select Interaction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+        
+        fileInput("Motif","Select SLiM prediction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+        actionButton("run", "Run", width = "100px"),
+        div(id="fileuploads",checkboxInput("uploadmotifs",label = "Upload Domain and/or Motif-Domain Files", value = FALSE)),
+        div(id="uploadmotif",  fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+            fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')))
+      ),
+      
+      # MainPanel
+      mainPanel(
+        #Creates a seperate window (pop up window)
+        #Creates a seperate window (pop up window)
+        bsModal("DisE", "ELM Distribution", "godis", size = "large", plotlyOutput("diselmchart")),
+        #Tab view
+        tabsetPanel(type="tabs",
+                    tabPanel("Uploaded Data",
+                             fluidRow(
+                               splitLayout(cellWidths = c("50%", "50%", "50%", "50%"), DT::dataTableOutput("udata2"), DT::dataTableOutput("udata")), DT::dataTableOutput("udata4"), DT::dataTableOutput("udata3")
+                             )
+                    ),
+                    
+                    tabPanel("Potential DMIs",
+                             DT::dataTableOutput("data"),
+                             tags$hr(),
+                             downloadButton('downloadDMI', 'Download')
+                    ),
+                    
+                    tabPanel("Predicted DMIs", DT::dataTableOutput("PredDMIs"),tags$hr(),downloadButton('downloadpredDMI', 'Download')),
+                    
+                    tabPanel("Statistics", fluidRow(
+                      splitLayout(cellWidths = c("75%", "25%"), plotlyOutput("plotbar"))
+                    )),
+                    tabPanel("Histogram", fluidRow(
+                      splitLayout(cellWidths = c("50%", "50%"), plotOutput("histogram"), htmlOutput("summary"))),
+                      tags$hr(),
+                      div(id="txtbox",actionButton("setting", "Settings")),
+                      div(id="txtbox",downloadButton("downloadPlot", "Download")),
+                      
+                      div(id="settings", sliderInput("bins", 
+                                                     "Number of bins",
+                                                     min= 1,
+                                                     max = 200,
+                                                     value = 30),
+                          tags$hr(),
+                          tags$h4(tags$strong("Select labels")),
+                          
+                          checkboxInput("barlabel", label="Bar Labels", value = FALSE, width = NULL),
+                          div(id="txtbox", textInput("text3", label = "Main title", value = "Distribution of random DMIs")),
+                          div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Numbers of random DMIs")),
+                          tags$style(type="text/css", "#txtbox {display: inline-block; max-width: 200px; }"),
+                          div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
+                          div(id="txtbox",numericInput("xlimstart", label = "X-axis Start",0)),
+                          div(id="txtbox",numericInput("xlimend", label = "X-axis End",500)),
+                          tags$hr(),
+                          tags$h4(tags$strong("Select Colors")),
+                          
+                          div(id="txtbox",colourInput("col", "Select bar colour", "deepskyblue1")),
+                          div(id="txtbox",colourInput("col2", "Select background colour", "white")),
+                          tags$hr(),
+                          tags$h4(tags$strong("Select width/height to download plot as png")),
+                          
+                          div(id="txtbox",numericInput("width", label = "Width ", value = 1200)),
+                          div(id="txtbox",numericInput("height", label = "Height ", value = 700))
+                          
+                          
+                          
+                          
+                          
+                      )),
+                    tabPanel("Distribution of ELMs",
+                             DT::dataTableOutput("diselmsdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godis", "Interactive View"))
+                    ),
+                    tabPanel("Network",fluidPage(tags$br(), selectInput("selectlayout", label = "Select Layout",
+                                                                        choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
+                                                                        selected = "layout_in_circle"),
+                                                 
+                                                 
+                                                 hr(),
+                                                 
+                                                 visNetworkOutput(outputId = "network",
+                                                                  height = "1500px",
+                                                                  width = "1500px")
+                                                 
+                                                 
+                    )
+                    )
+                    
+                    
+        )
+      )
+    )),
+    
+    
+    
+    tabPanel(HTML("</a></li><li><a href=\"https://github.com/slimsuite/SLiMEnrich/wiki/Quick-Tutorial\", target = _blank>Getting Started")),tabPanel(HTML("</a></li><li><a href=\"https://github.com/slimsuite/SLiMEnrich/wiki\", target = _blank>Instructions"
+    )), useShinyjs(),theme = shinytheme("sandstone"),
+    tags$style(type="text/css", "#title {font-family: 'Impact', cursive;
+               font-size: 32px;
+               font-style:italic;
+               font-color: #fff;
+               -webkit-text-stroke-width: 1px;
+               -webkit-text-stroke-color: black;}")
+    
+    
+    ))
+  
+  
 
 ##############################
 # Server logic
@@ -217,13 +224,18 @@ server <- shinyServer(function(input, output, session){
   observeEvent(input$uploadmotifs, {
     toggle(id = "uploadmotif", anim = TRUE)
   })
-
+  #lowercase function
+  lowername <- function(x) {
+    colnames(x) <- tolower(colnames(x))
+    x
+    
+  }
 
   #####################################################Domain-Motif Interactions####################################################
   #*********************************************************************************************************************************
   #Uploaded Data
   ####################################################
-
+  
   inputDataMotif <-eventReactive(input$run, {
     MotifFile<-input$Motif
     validate(
@@ -246,21 +258,25 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      #dProtein <- lowername(dProtein)
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      # dProtein <- lowername(dProtein)
     }
   })
   inputDataMotifDomain <-eventReactive(input$run, {
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      #Domain <- lowername(Domain)
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      #Domain <- lowername(Domain)
     }
     
   })
@@ -315,34 +331,44 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
-
+    
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
-
-  }
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
+      
+    }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
-  }
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
+    }
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
-
-
-#Motif-Domain Mapping
+    
+    
+    #Motif-Domain Mapping
     #Rename the columns in two files
     names(Motif_NR) <- c("Seq", "Motif")
     names(Domain) <- c("Motif", "Domain")
     #Join/Merge two files based on Motif
     Join <- merge(Motif_NR, Domain, by="Motif")
     names(Join) <- c("Motif", "Seq", "Domain")  #Change header of the output file
-#Domain-dProtein Mapping
+    #Domain-dProtein Mapping
     #Load results from the previous code)
     names(dProtein) <- c("Domain", "dProteins")
     #joined both files based on domain
@@ -353,24 +379,23 @@ server <- shinyServer(function(input, output, session){
     names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
     Uni_DMI <- Uni_DMI[, c("mProtein","Motif", "Domain", "dProtein")]
     print(Uni_DMI)
-    Uni_DMI
-
+    
   })
-
+  
   #shows the data table
   output$data<-DT::renderDataTable({
-   #Run it only when run button is active
-      if(input$run)
-       {
+    #Run it only when run button is active
+    if(input$run)
+    {
       #Generates progress bar
       style <- isolate(input$style)
-
+      
       # Create a Progress object
       progress <- shiny::Progress$new(style = style)
       progress$set(message = "Generating Data", value = 0)
       # Close the progress when this reactive exits (even if there's an error)
       on.exit(progress$close())
-
+      
       # Create a closure to update progress.
       # Each time this is called:
       # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
@@ -383,15 +408,15 @@ server <- shinyServer(function(input, output, session){
         }
         progress$set(value = value, detail = "(Potential DMIs)")
       }
-
+      
       # Compute the new data, and pass in the updateProgress function so
       # that it can update the progress indicator.
       compute_data(updateProgress)
-    formatStyle(datatable(potentialDMIs()), columns = 1:4, color = "black")
+      formatStyle(datatable(potentialDMIs()), columns = 1:4, color = "black")
     }
-     })
+  })
   #*************************************************************************************
-
+  
   #Step 2: Predicted DMIs
   ####################################################
   predictedDMIs <-eventReactive(input$run, {
@@ -409,25 +434,35 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
-
+    
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
-
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
+      
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
-     Motif_NR<-unique(Motif)
-
+    Motif_NR<-unique(Motif)
+    
     PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
     #Rename the columns in two files
     names(Motif_NR) <- c("Seq", "Motif")
@@ -445,7 +480,7 @@ server <- shinyServer(function(input, output, session){
     #Named the header of output file
     names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
     #print(Uni_DMI)
-
+    
     #PPI-DMI Mapping
     ########################################################################
     names(PPI2) <- c("mProtein", "dProtein")
@@ -454,44 +489,43 @@ server <- shinyServer(function(input, output, session){
     names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
     predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
     print(predDMIs)
-    predDMIs
   })
   #Shows predicted DMIs in DataTable
   output$PredDMIs<-DT::renderDataTable({
     #Run only if Run button is active
     if(input$run){
-    #Progress bar
-    style <- isolate(input$style)
-
-    # Create a Progress object
-    progress <- shiny::Progress$new(style = style)
-    progress$set(message = "Generating Data", value = 0)
-    # Close the progress when this reactive exits (even if there's an error)
-    on.exit(progress$close())
-
-    # Create a closure to update progress.
-    # Each time this is called:
-    # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-    #   distance. If non-NULL, it will set the progress to that value.
-    # - It also accepts optional detail text.
-    updateProgress <- function(value = NULL, detail = NULL) {
-      if (is.null(value)) {
-        value <- progress$getValue()
-        value <- value + (progress$getMax() - value) / 5
+      #Progress bar
+      style <- isolate(input$style)
+      
+      # Create a Progress object
+      progress <- shiny::Progress$new(style = style)
+      progress$set(message = "Generating Data", value = 0)
+      # Close the progress when this reactive exits (even if there's an error)
+      on.exit(progress$close())
+      
+      # Create a closure to update progress.
+      # Each time this is called:
+      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
+      #   distance. If non-NULL, it will set the progress to that value.
+      # - It also accepts optional detail text.
+      updateProgress <- function(value = NULL, detail = NULL) {
+        if (is.null(value)) {
+          value <- progress$getValue()
+          value <- value + (progress$getMax() - value) / 5
+        }
+        progress$set(value = value, detail = "(Predicted DMIs)")
       }
-      progress$set(value = value, detail = "(Predicted DMIs)")
+      
+      # Compute the new data, and pass in the updateProgress function so
+      # that it can update the progress indicator.
+      compute_data(updateProgress)
+      
+      
+      formatStyle(datatable(predictedDMIs()), columns = 1:4, color = "black")
     }
-
-    # Compute the new data, and pass in the updateProgress function so
-    # that it can update the progress indicator.
-    compute_data(updateProgress)
-
-
-    formatStyle(datatable(predictedDMIs()), columns = 1:4, color = "black")
-  }
-})
+  })
   #*************************************************************************************
-
+  
   #Step 3: Statistics
   ####################################################
   summaryStat <- eventReactive(input$run, {
@@ -509,100 +543,105 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
-
+    
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
-
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
+      
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
-
-      #Read uploaded files
-      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
-      names(Motif) <- c("UniprotID","Motif")
-      Motif_NR<-unique(Motif)
-      PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
-      #Rename the columns in two files
-      names( Motif_NR) <- c("Seq", "Motif")
-      names(Domain) <- c("Motif", "Domain")
-      #Join/Merge two files based on Motif
-      Join <- merge( Motif_NR, Domain, by="Motif")
-      #print(Join)
-      names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
-      #Load mProtein_Motif_Domain file (result file from the previous code)
-      names(dProtein) <- c("Domains", "dProteins")
-      #joined both files based on Domains
-      DMI <- merge(Join, dProtein,by="Domains")
-      #Filtered unique DMIs
-      Uni_DMI <- unique(DMI)
-      #Named the header of output file
-      names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
-      #print(Uni_DMI)
-      #vhPPI-DMI Mapping
-      ########################################################################
-      names(PPI2) <- c("mProtein", "dProtein")
-      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-      Uni_predDMIs <- unique(predDMI)
-      names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
-      predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-      #print(predDMIs)
-      colors=c("cadetblue1", "deepskyblue2", "blue", "darkblue")
-      #Select unique Motif
-      uniq_Motif <- unique(predDMI$Motif)
-      a <- length(uniq_Motif)
-      #Select unique Domain
-      uniq_Domain <- unique(predDMI$Domain)
-      b <- length(uniq_Domain)
-      #Select unique mProtein
-      uniq_mProtein <- unique(predDMI$mProtein)
-      c <- length(uniq_mProtein)
-      #Select unique dProteins
-      uniq_dProtein <- unique(predDMI$dProtein)
-      d <- length(uniq_dProtein)
-      uniq_count<-c(a = length(uniq_Motif), b = length(uniq_Domain), c = length(uniq_mProtein), d = length(uniq_dProtein))
-      #Create pie chart
-      #x <- c(a,b,c,d)
-      #Label names for the chart
-      #labels <- c("Motifs", "Domains", "Motif containing Proteins", "Domain containing Proteins")
-      #Created bar char of the unique values
-      
-     
-      
-      statdmi <- data.frame(
-        Datatype = factor(c("Motif","Domain","mProtien","dProtein")),
-        Numbers = c(a,b,c,d)
-      )
-      
-      p <- ggplot(data=statdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
-        geom_bar(colour="black", stat="identity") +
-        guides(fill=FALSE)
-      
-      p <- ggplotly(p)
-      #p
-      
-      #barplot(x, main="Statistics of DMIs", col = colors)
-      
-      #legend("topright",
-             #legend = c(paste("Motif=",a),paste("Domain=",b),paste("Motif containing Proteins=",c),paste("Domain containing Proteins=",d)), fill = colors)
-
-    })
+    
+    #Read uploaded files
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
+    names(Motif) <- c("UniprotID","Motif")
+    Motif_NR<-unique(Motif)
+    PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    #Rename the columns in two files
+    names( Motif_NR) <- c("Seq", "Motif")
+    names(Domain) <- c("Motif", "Domain")
+    #Join/Merge two files based on Motif
+    Join <- merge( Motif_NR, Domain, by="Motif")
+    #print(Join)
+    names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
+    #Load mProtein_Motif_Domain file (result file from the previous code)
+    names(dProtein) <- c("Domains", "dProteins")
+    #joined both files based on Domains
+    DMI <- merge(Join, dProtein,by="Domains")
+    #Filtered unique DMIs
+    Uni_DMI <- unique(DMI)
+    #Named the header of output file
+    names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+    #print(Uni_DMI)
+    #PPI-DMI Mapping
+    ########################################################################
+    names(PPI2) <- c("mProtein", "dProtein")
+    predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
+    Uni_predDMIs <- unique(predDMI)
+    names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+    predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
+    #print(predDMIs)
+    colors=c("cadetblue1", "deepskyblue2", "blue", "darkblue")
+    #Select unique Motif
+    uniq_Motif <- unique(predDMI$Motif)
+    a <- length(uniq_Motif)
+    #Select unique Domain
+    uniq_Domain <- unique(predDMI$Domain)
+    b <- length(uniq_Domain)
+    #Select unique mProtein
+    uniq_mProtein <- unique(predDMI$mProtein)
+    c <- length(uniq_mProtein)
+    #Select unique dProteins
+    uniq_dProtein <- unique(predDMI$dProtein)
+    d <- length(uniq_dProtein)
+    uniq_count<-c(a = length(uniq_Motif), b = length(uniq_Domain), c = length(uniq_mProtein), d = length(uniq_dProtein))
+    #Create pie chart
+    x <- c(a,b,c,d)
+    
+    statdmi <- data.frame(
+      Datatype = factor(c("Motif","Domain","mProtien","dProtein")),
+      Numbers = c(a,b,c,d)
+    )
+    
+    p <- ggplot(data=statdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
+      geom_bar(colour="black", stat="identity") +
+      guides(fill=FALSE)
+    
+    p <- ggplotly(p)
+    #p
+    
+    #barplot(x, main="Statistics of DMIs", col = colors)
+    
+    #legend("topright",
+    #legend = c(paste("Motif=",a),paste("Domain=",b),paste("Motif containing Proteins=",c),paste("Domain containing Proteins=",d)), fill = colors)
+    
+  })
   output$plotbar <- renderPlotly({
     if(input$run){
       style <- isolate(input$style)
-
+      
       # Create a Progress object
       progress <- shiny::Progress$new(style = style)
       progress$set(message ="Creating plot", value = 0)
       # Close the progress when this reactive exits (even if there's an error)
       on.exit(progress$close())
-
+      
       # Create a closure to update progress.
       # Each time this is called:
       # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
@@ -615,14 +654,14 @@ server <- shinyServer(function(input, output, session){
         }
         progress$set(value = value, detail = "(Summary bar chart)")
       }
-
+      
       # Compute the new data, and pass in the updateProgress function so
       # that it can update the progress indicator.
       compute_data(updateProgress)
-   summaryStat()
+      summaryStat()
     }
   })
- #Step 4: Distribution of ELMs in the Predicted DMIs
+  #Step 4: Distribution of ELMs in the Predicted DMIs
   #####################################################
   #*************************************************************************************
   disELMs <- eventReactive(input$run, {
@@ -640,23 +679,35 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    GOterms <- read.csv("data/elm_goterms.tsv",header=TRUE,sep="\t")
+    names(GOterms) <- c("ELM", "GO Term", "Biological Function")
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
@@ -693,13 +744,18 @@ server <- shinyServer(function(input, output, session){
       #
       
     }
+    
     df_pred2 <- data.frame(Matches)[,(1:2)]
     names(df_pred2) <- c("ELM","Freq")
     print(df_pred2)
     Frequency <- df_pred2$Freq
     ELMs_names <- df_pred2$ELM
     df_pred2 <- data.frame(ELMs_names,Frequency)
-    df_pred2
+    pvalueelm <- round(df_pred2$Frequency/nrow(df_pred),2)
+    pvaluecol <- cbind(df_pred2,pvalueelm)
+    names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
+    GeneOntology <- merge(pvaluecol,GOterms, by="ELM")
+    GeneOntology
   })
   
   output$diselmsdata <-DT::renderDataTable({
@@ -750,23 +806,33 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
@@ -862,7 +928,6 @@ server <- shinyServer(function(input, output, session){
       displotfunc()
     }
   })
-  
   #####################################################Enrichment Analysis####################################################
   #*********************************************************************************************************************************
 
@@ -890,25 +955,35 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
-
+    
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
-
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
+      
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     observe({
       show(id = "go2")
     })
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    Motif <- lowername(Motif)
+    Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
      Motif_NR<-unique(Motif)
     PPI<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
@@ -1080,19 +1155,27 @@ server <- shinyServer(function(input, output, session){
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
-      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
-
+    
     else{
-      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+      dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+      dProtein <- lowername(dProtein)
+      dProtein <- dProtein[,c("pfam","accnum")]
     }
     MotifDomainFile<-input$MotifDomain
     if(is.null(MotifDomainFile)){
-      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
-
+      Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
+      
     }
     else{
-      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+      Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+      Domain <- lowername(Domain)
+      Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
 
     dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
@@ -1164,13 +1247,13 @@ server <- shinyServer(function(input, output, session){
     set.seed(20)
     if(input$run){
       style <- isolate(input$style)
-
+      
       # Create a Progress object
       progress <- shiny::Progress$new(style = style)
       progress$set(message ="Creating Network", value = 0)
       # Close the progress when this reactive exits (even if there's an error)
       on.exit(progress$close())
-
+      
       # Create a closure to update progress.
       # Each time this is called:
       # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
@@ -1183,7 +1266,7 @@ server <- shinyServer(function(input, output, session){
         }
         progress$set(value = value, detail = "")
       }
-
+      
       # Compute the new data, and pass in the updateProgress function so
       # that it can update the progress indicator.
       compute_data(updateProgress)
@@ -1201,24 +1284,34 @@ server <- shinyServer(function(input, output, session){
       #File upload check
       DomainFile<-input$domain
       if(is.null(DomainFile)){
-        dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c(2:1)]
+        dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
+        dProtein <- lowername(dProtein)
+        dProtein <- dProtein[,c("pfam","accnum")]
       }
-
+      
       else{
-        dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")[,c(2:1)]
+        dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
+        dProtein <- lowername(dProtein)
+        dProtein <- dProtein[,c("pfam","accnum")]
       }
       MotifDomainFile<-input$MotifDomain
       if(is.null(MotifDomainFile)){
-        Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
-
+        Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
+        Domain <- lowername(Domain)
+        Domain <- Domain[, c("elmidentifier","interactiondomainid")]
+        
       }
       else{
-        Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")[,c(1:2)]
+        Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
+        Domain <- lowername(Domain)
+        Domain <- Domain[, c("elmidentifier","interactiondomainid")]
       }
       #Read uploaded files
-      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")[,c('AccNum','Motif')]
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+      Motif <- lowername(Motif)
+      Motif <- Motif[, c("accnum","motif")]
       names(Motif) <- c("UniprotID","Motif")
-       Motif_NR<-unique(Motif)
+      Motif_NR<-unique(Motif)
       PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
       #Rename the columns in two files
       names( Motif_NR) <- c("Seq", "Motif")
@@ -1236,69 +1329,69 @@ server <- shinyServer(function(input, output, session){
       #Named the header of output file
       names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
       #print(Uni_DMI)
-
+      
       #PPI-DMI Mapping
       ########################################################################
       names(PPI2) <- c("mProtein", "dProtein")
       predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-
+      
       Uni_predDMIs <- unique(predDMI)
       names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
       predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
       if(nrow(predDMIs) != 0){
-      #Network
-
-      first <- predDMI[,c("mProtein","Motif")]
-      g <- graph.data.frame(first, directed = F)
-      #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-      V(g)$color <- ifelse(V(g)$name %in% predDMI[,1], "#A93226", "#F7DC6F")
-      V(g)$shape <- ifelse(V(g)$name %in% predDMI[,1], "square", "box")
-      #plot(g,  edge.color="orange")
-      #visIgraph(g)
-      ##print(first)
-      #V(g)$color <- "red"
-      #Second
-      second <- predDMI[,c("Motif","Domain")]
-      g2 <- graph.data.frame(second, directed = F)
-      #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-      V(g2)$color <- ifelse(V(g2)$name %in% predDMI[,1], "#9B59B6", "#D35400")
-      V(g2)$shape <- ifelse(V(g2)$name %in% predDMI[,1], "box", "circle")
-      #plot(g2,  edge.color="orange")
-      #print(second)
-      #visIgraph(g2)
-      #V(g2)$color <- "green"
-      #Third
-
-      third <- predDMI[,c("Domain","dProtein")]
-      g3 <- graph.data.frame(third, directed = F)
-      #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-      V(g3)$color <- ifelse(V(g3)$name %in% predDMI[,3], "#9B59B6", "#85C1E9")
-      V(g3)$shape <- ifelse(V(g3)$name %in% predDMI[,3], "vrectangle", "circle")
-      #plot(g3,  edge.color="orange")
-      #visIgraph(g3)
-      #print(third)
-      #V(g3)$color <- "pink"
-
-      #merge networks
-      g4 = graph.union(g,g2,g3, byname = TRUE)
-      #g4 <- g %u% g2 %u% g3
-      g5 <- simplify(g4, remove.multiple = TRUE, remove.loops = TRUE)
-      #plot.igraph(g5, layout=layout.fruchterman.reingold)
-      V(g5)$color <- ifelse(is.na(V(g5)$color_1),
-                            V(g5)$color_3,V(g5)$color_1)
-      V(g5)$shape <- ifelse(is.na(V(g5)$shape_1),
-                            V(g5)$shape_3,V(g5)$shape_1)
-      E(g5)$color <- "black"
-      E(g)$width <- 9
-     g6 <- visIgraph(g5,layout = input$selectlayout, physics = FALSE, smooth = TRUE, type = "square")
-     #visExport(g6, type = "png", name = "export-network",float = "left", label = "Save network", background = "white", style= "")
-
+        #Network
+        
+        first <- predDMI[,c("mProtein","Motif")]
+        g <- graph.data.frame(first, directed = F)
+        #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
+        V(g)$color <- ifelse(V(g)$name %in% predDMI[,1], "#A93226", "#F7DC6F")
+        V(g)$shape <- ifelse(V(g)$name %in% predDMI[,1], "square", "box")
+        #plot(g,  edge.color="orange")
+        #visIgraph(g)
+        ##print(first)
+        #V(g)$color <- "red"
+        #Second
+        second <- predDMI[,c("Motif","Domain")]
+        g2 <- graph.data.frame(second, directed = F)
+        #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
+        V(g2)$color <- ifelse(V(g2)$name %in% predDMI[,1], "#9B59B6", "#D35400")
+        V(g2)$shape <- ifelse(V(g2)$name %in% predDMI[,1], "box", "circle")
+        #plot(g2,  edge.color="orange")
+        #print(second)
+        #visIgraph(g2)
+        #V(g2)$color <- "green"
+        #Third
+        
+        third <- predDMI[,c("Domain","dProtein")]
+        g3 <- graph.data.frame(third, directed = F)
+        #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
+        V(g3)$color <- ifelse(V(g3)$name %in% predDMI[,3], "#9B59B6", "#85C1E9")
+        V(g3)$shape <- ifelse(V(g3)$name %in% predDMI[,3], "vrectangle", "circle")
+        #plot(g3,  edge.color="orange")
+        #visIgraph(g3)
+        #print(third)
+        #V(g3)$color <- "pink"
+        
+        #merge networks
+        g4 = graph.union(g,g2,g3, byname = TRUE)
+        #g4 <- g %u% g2 %u% g3
+        g5 <- simplify(g4, remove.multiple = TRUE, remove.loops = TRUE)
+        #plot.igraph(g5, layout=layout.fruchterman.reingold)
+        V(g5)$color <- ifelse(is.na(V(g5)$color_1),
+                              V(g5)$color_3,V(g5)$color_1)
+        V(g5)$shape <- ifelse(is.na(V(g5)$shape_1),
+                              V(g5)$shape_3,V(g5)$shape_1)
+        E(g5)$color <- "black"
+        E(g)$width <- 9
+        g6 <- visIgraph(g5,layout = input$selectlayout, physics = FALSE, smooth = TRUE, type = "square")
+        #visExport(g6, type = "png", name = "export-network",float = "left", label = "Save network", background = "white", style= "")
+        
       }
-  }
+    }
   }
   output$network <- renderVisNetwork({
     mynetwork()
-
+    
   })
 
   ###
