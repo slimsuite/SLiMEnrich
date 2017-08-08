@@ -175,7 +175,7 @@ dev.off()
 
       #Randomization/Permutations                                                  
       
-      PPI_data<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
+      PPI_data<-read.csv(opt$pFile,header=TRUE,sep=",")
       names(PPI_data) <- c("mProtein", "dProtein")
       PPI_Matrix<-matrix(data = PPI_data$mProtein)
       PPI_Matrix2<-matrix(data = PPI_data$dProtein)
