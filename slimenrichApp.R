@@ -19,12 +19,12 @@
 #V1.0.6 - Added p-values, GOTerms and Biological function of ELMs in ELM distribution tab
 #V1.0.7 - File headers to lowercase for consistency
 ##############################
-#This program is free software: you can redistribute it and/or modify
+#SLiMEnrich program is free software: you can redistribute it and/or modify
  #   it under the terms of the GNU General Public License as published by
   #  the Free Software Foundation, either version 3 of the License, or
   #  (at your option) any later version.
 
-   # This program is distributed in the hope that it will be useful,
+   # SLiMEnrich program is distributed in the hope that it will be useful,
    # but WITHOUT ANY WARRANTY; without even the implied warranty of
    # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    # GNU General Public License for more details.
