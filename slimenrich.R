@@ -11,6 +11,7 @@
 ##############################
 #V1.0.1 - Generic naming
 #V1.0.2-  Added commandline arguments to select files
+#V1.0.3- Added Escore (Enrichment score)
 ##############################
 # Argument Description
 #SLiMs file option
@@ -272,7 +273,8 @@ dev.off()
       pvalue <-   length(x[x >= nrow(predDMIs)])/1000
       meanvalue <- mean(x$values)
       FDR <- mean(x$values)/nrow(predDMIs)
-     sum <- data.frame(pvalue, meanvalue, FDR)
+      Escore <- nrow(predDMIs)/mean(x$values)
+     sum <- data.frame(pvalue, meanvalue, FDR, Escore)
      summary <- write.csv(sum, "output/summary.csv", row.names = FALSE)
      print("summary Table has been created in output directory")
     #*************************************************************************************
