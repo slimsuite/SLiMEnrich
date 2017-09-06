@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.7
+# Version: 1.0.8
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -17,6 +17,7 @@
 #V1.0.4 - Checks whether any of the random files is missing and creates if not present.
 #V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
 #V1.0.7 - File headers to lowercase for consistency
+#V1.0.8 - Auto loading example dataset
 ##############################
 #SLiMEnrich is free software: you can redistribute it and/or modify
  #   it under the terms of the GNU General Public License as published by
@@ -56,23 +57,43 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                   @-webkit-keyframes mymove {
                   50% {color: black;}
                   }
-                  "))
+                  .shiny-notification {
+                    font-weight: bold;
+                    bottom: calc(0%)
+                    width: calc(100%)
+                  }
+                  #note{
+                  color: red;
+                  background-color: white;
+                  font-size: 10;
+                  font-weight: bold;
+
+                  }
+                  #update{
+                  color: white;
+                  background-color: black;
+                  font-weight: bold;
+                  font-size: 10;
+}
+                  " ))
   ),
   # Sidebar
   sidebarLayout(
     sidebarPanel(
       fileInput("PPI","Select Interaction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
       
-      fileInput("Motif","Select SLiM prediction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+      fileInput("Motif","Select SLiM prediction file (e.g. SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
       actionButton("run", "Run", width = "100px"),
       div(id="fileuploads",checkboxInput("uploadmotifs",label = "Upload Domain and/or Motif-Domain Files", value = FALSE)),
       div(id="uploadmotif",  fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-          fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')))
+          fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv'))),
+      div (id = "note", "Note: To analyze example dataset, press 'Run' without uploading any files"),
+      hr(),
+      div (id = "update", "Last updated: 06-Sep-2017")
     ),
     
     # MainPanel
     mainPanel(
-      #Creates a seperate window (pop up window)
       #Creates a seperate window (pop up window)
       bsModal("DisE", "ELM Distribution", "godis", size = "large", plotlyOutput("diselmchart")),
       #Tab view
@@ -125,11 +146,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                         
                         div(id="txtbox",numericInput("width", label = "Width ", value = 1200)),
                         div(id="txtbox",numericInput("height", label = "Height ", value = 700))
-                        
-                        
-                     
-                        
-                        
+   
                     )),
                   tabPanel("Distribution of ELMs",
                            DT::dataTableOutput("diselmsdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godis", "Interactive View"))
