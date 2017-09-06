@@ -89,7 +89,6 @@ server <- shinyServer(function(input, output, session){
     MotifFile<-input$Motif
     PPIFile<-input$PPI
     if(is.null(MotifFile) || is.null(PPIFile)){
-      showNotification("You didn't provide required files therefore, example data will be loaded and analyzed", type = "error", duration = 9)
       showNotification("Example dataset", type = "warning", duration = NULL)
   }
     })
