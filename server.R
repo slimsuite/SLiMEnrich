@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.7
+# Version: 1.0.8
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -16,8 +16,8 @@
 #       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
 #V1.0.4 - Checks whether any of the random files is missing and creates if not present.
 #V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
-#V1.0.6 - Added p-values, GOTerms and Biological function of ELMs in ELM distribution tab
 #V1.0.7 - File headers to lowercase for consistency
+#V1.0.8 - Auto loading example dataset
 ##############################
 #SLiMEnrich is free software: you can redistribute it and/or modify
  #   it under the terms of the GNU General Public License as published by
@@ -85,27 +85,41 @@ server <- shinyServer(function(input, output, session){
     x
     
   }
+  observeEvent(input$run, {
+    MotifFile<-input$Motif
+    PPIFile<-input$PPI
+    if(is.null(MotifFile) || is.null(PPIFile)){
+      showNotification("You didn't provide required files therefore, example data will be loaded and analyzed", type = "error", duration = 9)
+      showNotification("Example dataset", type = "warning", duration = NULL)
+  }
+    })
   #####################################################Domain-Motif Interactions####################################################
   #*********************************************************************************************************************************
   #Uploaded Data
   ####################################################
-  
   inputDataMotif <-eventReactive(input$run, {
     MotifFile<-input$Motif
-    validate(
-      need(input$Motif != "", "Please select SLiM prediction file "), errorClass = "myClass"
-    )
+    if(is.null(MotifFile)){
+     #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+    }
     
-    #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    
+    else{
+      #Read uploaded files
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
   })
   inputDataPPI <-eventReactive(input$run, {
     PPIFile<-input$PPI
-    validate(
-      need(input$PPI != "", "Please select PPI file "),errorClass = "myClass"
-    )
+    if(is.null(PPIFile)){
+      #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+      PPI2<-read.csv("example/adenofamilyPPIs.csv",header=TRUE,sep=",")
+  }
+    else{
+    
     PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+  }
+  
   })
   
   inputDatadomain <-eventReactive(input$run, {
@@ -179,9 +193,7 @@ server <- shinyServer(function(input, output, session){
   potentialDMIs <-eventReactive(input$run, {
     #File upload check
     MotifFile<-input$Motif
-    validate(
-      need(input$Motif != "", "No SLiMs file was found Please upload file and 'Run' again "), errorClass = "myClass"
-    )
+    
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
@@ -207,8 +219,17 @@ server <- shinyServer(function(input, output, session){
       Domain <- lowername(Domain)
       Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
+    
+    if(is.null(MotifFile)){
+      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    
     #Read uploaded files
     Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     Motif <- lowername(Motif)
     Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
@@ -275,16 +296,21 @@ server <- shinyServer(function(input, output, session){
   ####################################################
   predictedDMIs <-eventReactive(input$run, {
     MotifFile<-input$Motif
+    if(is.null(MotifFile)){
+      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     PPIFile<-input$PPI
-    validate(
-      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
-    )
+    if(is.null(PPIFile)){
+      PPI2<-read.csv("example/adenofamilyPPIs.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    }
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
@@ -310,14 +336,11 @@ server <- shinyServer(function(input, output, session){
       Domain <- lowername(Domain)
       Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
-    #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
     Motif <- lowername(Motif)
     Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     
-    PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
     #Rename the columns in two files
     names(Motif_NR) <- c("Seq", "Motif")
     names(Domain) <- c("Motif", "Domain")
@@ -384,16 +407,22 @@ server <- shinyServer(function(input, output, session){
   ####################################################
   summaryStat <- eventReactive(input$run, {
     MotifFile<-input$Motif
+    if(is.null(MotifFile)){
+      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     PPIFile<-input$PPI
-    validate(
-      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
-    )
+    if(is.null(PPIFile)){
+      PPI2<-read.csv("example/adenofamilyPPIs.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    }
+    
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
@@ -420,13 +449,12 @@ server <- shinyServer(function(input, output, session){
       Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     
-    #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+
+    
     Motif <- lowername(Motif)
     Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
-    PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
     #Rename the columns in two files
     names( Motif_NR) <- c("Seq", "Motif")
     names(Domain) <- c("Motif", "Domain")
@@ -520,16 +548,21 @@ server <- shinyServer(function(input, output, session){
   #*************************************************************************************
   disELMs <- eventReactive(input$run, {
     MotifFile<-input$Motif
+    if(is.null(MotifFile)){
+      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     PPIFile<-input$PPI
-    validate(
-      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
-    )
+    if(is.null(PPIFile)){
+      PPI2<-read.csv("example/adenofamilyPPIs.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    }
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
@@ -559,12 +592,10 @@ server <- shinyServer(function(input, output, session){
     #Read uploaded files
     GOterms <- read.csv("data/elm_goterms.tsv",header=TRUE,sep="\t")
     names(GOterms) <- c("ELM", "GO Term", "Biological Function")
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
     Motif <- lowername(Motif)
     Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
-    PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
     #Rename the columns in two files
     names( Motif_NR) <- c("Seq", "Motif")
     names(Domain) <- c("Motif", "Domain")
@@ -647,16 +678,21 @@ server <- shinyServer(function(input, output, session){
   })
   displotfunc <- function(){
     MotifFile<-input$Motif
+    if(is.null(MotifFile)){
+      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     PPIFile<-input$PPI
-    validate(
-      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
-    )
+    if(is.null(PPIFile)){
+      PPI2<-read.csv("example/adenofamilyPPIs.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    }
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
@@ -682,14 +718,10 @@ server <- shinyServer(function(input, output, session){
       Domain <- lowername(Domain)
       Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
-    
-    #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
     Motif <- lowername(Motif)
     Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
-    PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
     #Rename the columns in two files
     names( Motif_NR) <- c("Seq", "Motif")
     names(Domain) <- c("Motif", "Domain")
@@ -797,16 +829,21 @@ server <- shinyServer(function(input, output, session){
 ####################################################
   rPPIDMI <-reactive({
     MotifFile<-input$Motif
+    if(is.null(MotifFile)){
+      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     PPIFile<-input$PPI
-    validate(
-      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
-    )
+    if(is.null(PPIFile)){
+      PPI<-read.csv("example/adenofamilyPPIs.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      PPI<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    }
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
@@ -835,13 +872,10 @@ server <- shinyServer(function(input, output, session){
     observe({
       show(id = "go2")
     })
-    #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
     Motif <- lowername(Motif)
     Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
-    PPI<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
     #Rename the columns in two files
     names( Motif_NR) <- c("Seq", "Motif")
     names(Domain) <- c("Motif", "Domain")
@@ -865,9 +899,7 @@ server <- shinyServer(function(input, output, session){
     #print(predDMIs)
     #Randomization/Permutations
     ##############################################################################
-    PPIFile<-input$PPI
-    
-    PPI_data<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    PPI_data <- PPI
     names(PPI_data) <- c("mProtein", "dProtein")
     PPI_Matrix<-matrix(data = PPI_data$mProtein)
     PPI_Matrix2<-matrix(data = PPI_data$dProtein)
@@ -964,10 +996,21 @@ server <- shinyServer(function(input, output, session){
   #Function to generate Histogram
   plotInput <- function(){
     MotifFile<-input$Motif
+    if(is.null(MotifFile)){
+      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     PPIFile<-input$PPI
-    validate(
-      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
-    )
+    if(is.null(PPIFile)){
+      PPI<-read.csv("example/adenofamilyPPIs.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      PPI<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    }
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
@@ -1088,16 +1131,21 @@ mynetwork <- function(){
     # that it can update the progress indicator.
     compute_data(updateProgress)
     MotifFile<-input$Motif
+    if(is.null(MotifFile)){
+      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     PPIFile<-input$PPI
-    validate(
-      need(input$Motif != "" || input$PPI != "", "Either SLiMs or PPI file is missing. Please upload files and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$PPI != "", "PPI file is missing. Please upload and try again "), errorClass = "myClass"
-    )
-    validate(
-      need(input$Motif != "", "Please select SLiMs file "), errorClass = "myClass"
-    )
+    if(is.null(PPIFile)){
+      PPI2<-read.csv("example/adenofamilyPPIs.csv",header=TRUE,sep=",")
+    }
+    
+    else{
+      PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
+    }
     #File upload check
     DomainFile<-input$domain
     if(is.null(DomainFile)){
@@ -1124,12 +1172,10 @@ mynetwork <- function(){
       Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
     #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
     Motif <- lowername(Motif)
     Motif <- Motif[, c("accnum","motif")]
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
-    PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
     #Rename the columns in two files
     names( Motif_NR) <- c("Seq", "Motif")
     names(Domain) <- c("Motif", "Domain")
