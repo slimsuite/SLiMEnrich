@@ -144,8 +144,8 @@ if (interactive()) {
                           tags$hr(),
                           tags$h4(tags$strong("Select Colors")),
                           
-                          div(id="txtbox",colourInput("col", "Select bar colour", "deepskyblue1")),
-                          div(id="txtbox",colourInput("col2", "Select background colour", "white")),
+                          div(id="txtbox",colourpicker::colourInput("col", "Select bar colour", "deepskyblue1")),
+                          div(id="txtbox",colourpicker::colourInput("col2", "Select background colour", "white")),
                           tags$hr(),
                           tags$h4(tags$strong("Select width/height to download plot as png")),
                           
