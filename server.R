@@ -99,11 +99,15 @@ server <- shinyServer(function(input, output, session){
   observeEvent(input$run, {
     MotifFile<-input$Motif
     PPIFile<-input$PPI
+    if(is.null(PPIFile)){
+      showNotification("PPI file is missing. Loading Example dataset", type = "error", duration = 5)
+    }
+    
     SliMJobId <- input$SLiMRun
-    if(is.null(MotifFile) || is.null(PPIFile) ){
-      if(SliMJobId == "" ){
-      showNotification("Example dataset", type = "warning", duration = NULL)
-      }
+    if(is.null(MotifFile) && SliMJobId == "" ){
+      showNotification("SLiMProbe file is missing. Loading Example dataset", type = "error", duration = 5)
+      showNotification("Loaded Example dataset", type = "warning", duration = NULL)
+      
   }
     })
   #####################################################Domain-Motif Interactions####################################################
