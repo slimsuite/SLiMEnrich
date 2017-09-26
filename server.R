@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.8
+# Version: 1.0.9
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -18,6 +18,7 @@
 #V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
 #V1.0.7 - File headers to lowercase for consistency
 #V1.0.8 - Auto loading example dataset
+#V1.0.9 - Reads SLiMProb REST server output through Job Id.
 ##############################
 #SLiMEnrich is free software: you can redistribute it and/or modify
  #   it under the terms of the GNU General Public License as published by
@@ -78,6 +79,16 @@ server <- shinyServer(function(input, output, session){
   observeEvent(input$uploadmotifs, {
     toggle(id = "uploadmotif", anim = TRUE)
   })
+  observeEvent(input$SLiMrunid, {
+    toggle(id = "slimrun", anim = TRUE)
+    if(input$SLiMrunid){
+      hide("slimf")
+    }
+    else{
+      show("slimf")
+    }
+  })
+  
   
   #lowercase function
   lowername <- function(x) {
@@ -88,16 +99,25 @@ server <- shinyServer(function(input, output, session){
   observeEvent(input$run, {
     MotifFile<-input$Motif
     PPIFile<-input$PPI
-    if(is.null(MotifFile) || is.null(PPIFile)){
+    SliMJobId <- input$SLiMRun
+    if(is.null(MotifFile) || is.null(PPIFile) ){
+      if(SliMJobId == "" ){
       showNotification("Example dataset", type = "warning", duration = NULL)
+      }
   }
     })
   #####################################################Domain-Motif Interactions####################################################
   #*********************************************************************************************************************************
   #Uploaded Data
   ####################################################
+
   inputDataMotif <-eventReactive(input$run, {
+    if(input$SLiMrunid){
+      Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
+    }
+    else{
     MotifFile<-input$Motif
+    
     if(is.null(MotifFile)){
      #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
       Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
@@ -106,6 +126,7 @@ server <- shinyServer(function(input, output, session){
     else{
       #Read uploaded files
       Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     }
   })
   inputDataPPI <-eventReactive(input$run, {
@@ -218,7 +239,10 @@ server <- shinyServer(function(input, output, session){
       Domain <- lowername(Domain)
       Domain <- Domain[, c("elmidentifier","interactiondomainid")]
     }
-    
+    if(input$SLiMrunid){
+      Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
+    }
+    else{
     if(is.null(MotifFile)){
       Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
     }
@@ -228,6 +252,7 @@ server <- shinyServer(function(input, output, session){
     
     #Read uploaded files
     Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     }
     Motif <- lowername(Motif)
     Motif <- Motif[, c("accnum","motif")]
@@ -294,6 +319,10 @@ server <- shinyServer(function(input, output, session){
   #Step 2: Predicted DMIs
   ####################################################
   predictedDMIs <-eventReactive(input$run, {
+    if(input$SLiMrunid){
+      Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
+    }
+    else{
     MotifFile<-input$Motif
     if(is.null(MotifFile)){
       Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
@@ -301,6 +330,7 @@ server <- shinyServer(function(input, output, session){
     
     else{
       Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -405,6 +435,10 @@ server <- shinyServer(function(input, output, session){
   #Step 3: Statistics
   ####################################################
   summaryStat <- eventReactive(input$run, {
+    if(input$SLiMrunid){
+      Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
+    }
+    else{
     MotifFile<-input$Motif
     if(is.null(MotifFile)){
       Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
@@ -412,6 +446,7 @@ server <- shinyServer(function(input, output, session){
     
     else{
       Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -546,6 +581,10 @@ server <- shinyServer(function(input, output, session){
   #####################################################
   #*************************************************************************************
   disELMs <- eventReactive(input$run, {
+    if(input$SLiMrunid){
+      Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
+    }
+    else{
     MotifFile<-input$Motif
     if(is.null(MotifFile)){
       Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
@@ -553,6 +592,7 @@ server <- shinyServer(function(input, output, session){
     
     else{
       Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -676,6 +716,10 @@ server <- shinyServer(function(input, output, session){
     }
   })
   displotfunc <- function(){
+    if(input$SLiMrunid){
+      Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
+    }
+    else{
     MotifFile<-input$Motif
     if(is.null(MotifFile)){
       Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
@@ -683,6 +727,7 @@ server <- shinyServer(function(input, output, session){
     
     else{
       Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -827,6 +872,10 @@ server <- shinyServer(function(input, output, session){
 #A file named randomNumbers will be generated in "RandomFiles" that will be used to generate Histogram later.
 ####################################################
   rPPIDMI <-reactive({
+    if(input$SLiMrunid){
+      Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
+    }
+    else{
     MotifFile<-input$Motif
     if(is.null(MotifFile)){
       Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
@@ -834,6 +883,7 @@ server <- shinyServer(function(input, output, session){
     
     else{
       Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -937,7 +987,7 @@ server <- shinyServer(function(input, output, session){
   }
   #rPPI-DMI Mapping                                                               
   #################################################################################
-    showNotification("1000 random PPI files have been created in RandomFiles folder", type = "message", duration = 5)
+    showNotification("1000 random PPI files have been created", type = "message", duration = 5)
     showNotification("Now predicing DMIs from the random PPI data", type = "message", closeButton = TRUE,duration = 15)
     m <- data.frame()
   for (i in 1:1000) {
@@ -994,6 +1044,10 @@ server <- shinyServer(function(input, output, session){
   })
   #Function to generate Histogram
   plotInput <- function(){
+    if(input$SLiMrunid){
+      Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
+    }
+    else{
     MotifFile<-input$Motif
     if(is.null(MotifFile)){
       Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
@@ -1001,6 +1055,7 @@ server <- shinyServer(function(input, output, session){
     
     else{
       Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -1129,6 +1184,10 @@ mynetwork <- function(){
     # Compute the new data, and pass in the updateProgress function so
     # that it can update the progress indicator.
     compute_data(updateProgress)
+    if(input$SLiMrunid){
+      Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
+    }
+    else{
     MotifFile<-input$Motif
     if(is.null(MotifFile)){
       Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
@@ -1136,6 +1195,7 @@ mynetwork <- function(){
     
     else{
       Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+    }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
