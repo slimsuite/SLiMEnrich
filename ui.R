@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.8
+# Version: 1.0.9
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -18,6 +18,7 @@
 #V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
 #V1.0.7 - File headers to lowercase for consistency
 #V1.0.8 - Auto loading example dataset
+#V1.0.9 - Reads SLiMProb REST server output through Job Id.
 ##############################
 #SLiMEnrich is free software: you can redistribute it and/or modify
  #   it under the terms of the GNU General Public License as published by
@@ -82,14 +83,16 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
     sidebarPanel(
       fileInput("PPI","Select Interaction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
       
-      fileInput("Motif","Select SLiM prediction file (e.g. SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+      div(id = "slimf", fileInput("Motif","Select SLiM prediction file (e.g. SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv'))),
+      div(id = "slimupload", checkboxInput("SLiMrunid", label = "Provide SLiMProb Job ID", value = FALSE)),
+      div(id = "slimrun", textInput("SLiMRun", label = "", value = "")),
       actionButton("run", "Run", width = "100px"),
       div(id="fileuploads",checkboxInput("uploadmotifs",label = "Upload Domain and/or Motif-Domain Files", value = FALSE)),
       div(id="uploadmotif",  fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
           fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv'))),
       div (id = "note", "Note: To analyze example dataset, press 'Run' without uploading any files"),
       hr(),
-      div (id = "update", "Last updated: 06-Sep-2017")
+      div (id = "update", "Last updated: 26-Sep-2017")
     ),
     
     # MainPanel
