@@ -12,6 +12,7 @@
 #V1.0.1 - Generic naming
 #V1.0.2-  Added commandline arguments to select files
 #V1.0.3- Added Escore (Enrichment score)
+#V1.0.4- Removes redundant PPIs
 ##############################
 # Argument Description
 #SLiMs file option
@@ -22,18 +23,10 @@
 # -m
 #PPI file argument
 # -p
-#SLiMEnrich program is free software: you can redistribute it and/or modify
- #   it under the terms of the GNU General Public License as published by
-  #  the Free Software Foundation, either version 3 of the License, or
-  #  (at your option) any later version.
-
-   # SLiMEnrich program is distributed in the hope that it will be useful,
-   # but WITHOUT ANY WARRANTY; without even the implied warranty of
-   # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   # GNU General Public License for more details.
-
-   # You should have received a copy of the GNU General Public License
-   # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+# SLiMEnrich program is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ##############################
 #Required Libraries
 ##############################
@@ -131,6 +124,7 @@ print("potentialDMIs.csv file has been saved in output folder")
 ########################################################################
 
 PPI2<-read.csv(opt$pFile,header=TRUE,sep=",")
+PPI2 <- unique(PPI2)
 names(PPI2) <- c("mProtein", "dProtein")
 writeLines("Finding predicted DMIs...", sep="\n")
 predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
@@ -189,6 +183,7 @@ dev.off()
       #Randomization/Permutations                                                  
       
       PPI_data<-read.csv(opt$pFile,header=TRUE,sep=",")
+      PPI_data<-unique(PPI_data)
       names(PPI_data) <- c("mProtein", "dProtein")
       PPI_Matrix<-matrix(data = PPI_data$mProtein)
       PPI_Matrix2<-matrix(data = PPI_data$dProtein)
