@@ -527,13 +527,14 @@ server <- shinyServer(function(input, output, session){
     x <- c(a,b,c,d)
     
     statdmi <- data.frame(
-      Datatype = factor(c("Motif","Domain","mProtien","dProtein")),
+      Datatype = factor(c("Motif","Domain","mProtein","dProtein")),
       Numbers = c(a,b,c,d)
     )
     
     p <- ggplot(data=statdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
       geom_bar(colour="black", stat="identity") +
-      guides(fill=FALSE)
+      guides(fill=FALSE)+
+      scale_fill_manual(values = c("#9B59B6", "#85C1E9", "gold", "red"))
     
     p <- ggplotly(p)
     #p
