@@ -91,6 +91,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
     mainPanel(
       #Creates a seperate window (pop up window)
       bsModal("DisE", "ELM Distribution", "godis", size = "large", plotlyOutput("diselmchart")),
+      bsModal("DidsE", "Domain Distribution", "godisd", size = "large", plotlyOutput("disdomchart")),
       #Tab view
       tabsetPanel(type="tabs",
                   tabPanel("Uploaded Data",
@@ -145,6 +146,9 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                     )),
                   tabPanel("Distribution of ELMs",
                            DT::dataTableOutput("diselmsdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godis", "Interactive View"))
+                  ),
+                  tabPanel("Distribution of Domains",
+                           DT::dataTableOutput("disdomdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godisd", "Interactive View"))
                   ),
                   tabPanel("Network",fluidPage(tags$br(), selectInput("selectlayout", label = "Select Layout",
                                                                       choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
