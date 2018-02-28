@@ -19,6 +19,7 @@
 #V1.0.7 - File headers to lowercase for consistency
 #V1.0.8 - Auto loading example dataset
 #V1.0.9 - Reads SLiMProb REST server output through Job Id.
+#V1.1.0 - Added new tab to show distribution of Domains in the predicted DMI dataset.
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
