@@ -153,7 +153,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                   ),
                   tabPanel("Network",fluidPage(tags$br(), selectInput("selectlayout", label = "Select Layout",
                                                                       choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
-                                                                      selected = "layout_nicely"),
+                                                                      selected = "piecewise.layout"),
                                                
                                                
                                                hr(),
