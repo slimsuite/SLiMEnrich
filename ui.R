@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.1.0
+# Version: 1.1.1
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -20,6 +20,7 @@
 #V1.0.8 - Auto loading example dataset
 #V1.0.9 - Reads SLiMProb REST server output through Job Id.
 #V1.1.0 - Added new tab to show distribution of Domains in the predicted DMI dataset.
+#V1.1.1 - New FDR calculation
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -132,7 +133,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                         tags$style(type="text/css", "#txtbox {display: inline-block; max-width: 200px; }"),
                         div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
                         div(id="txtbox",numericInput("xlimstart", label = "X-axis Start",0)),
-                        div(id="txtbox",numericInput("xlimend", label = "X-axis End",500)),
+                        div(id="txtbox",numericInput("xlimend", label = "X-axis End",300)),
                         tags$hr(),
                         tags$h4(tags$strong("Select Colors")),
                         
