@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.1.0
+# Version: 1.1.1
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -20,6 +20,7 @@
 #V1.0.8 - Auto loading example dataset
 #V1.0.9 - Reads SLiMProb REST server output through Job Id.
 #V1.1.0 - Added new tab to show distribution of Domains in the predicted DMI dataset.
+#V1.1.1 - New FDR calculation
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -1378,18 +1379,19 @@ server <- shinyServer(function(input, output, session){
   
   
   lines(xfit,yfit)
-  #axis(side=3, lwd = 0, lwd.ticks = 4, at=nrow(predictedDMIs()), lend=1, labels = FALSE, tcl=5, font=2, col = "black", padj = 0, lty = 3)
-  #shows the observed value
-  mtext(paste("Observed value is: ", nrow(predictedDMIs())), side = 3, at=nrow(predictedDMIs()), font = 4)
-  mtext(paste0("P-value is: ", length(x[x >= nrow(predictedDMIs())])/1000), side = 3, at=nrow(predictedDMIs())+90, font = 4, col = "red")
-  #mtext(paste0("Mean is: ", mean(x$values)), side = 3, at=mean(x$values), font = 4, col="red")
-  #mtext(paste0("FDR is: ", mean(x$values)/nrow(predictedDMIs())), side = 3, at=50, font = 4, col= "red")
-  #points arrow on the observed value
-  arrows(nrow(predictedDMIs()), 480, nrow(predictedDMIs()), 0, lwd = 2, col = "black", length = 0.1, lty = 3)
-  pvalue <-  paste0("<b>P-value is: </b>", length(x[x >= nrow(predictedDMIs())])/1000)
-  meanvalue <- paste0("<b>Mean is: </b>", round(mean(x$values)))
-  Escore <- paste0("<b>Enrichment score (E-score) is: </b>", round(nrow(predictedDMIs())/mean(x$values),2))
-  FDR <- paste0("<b>False Discrovery Rate (FDR) is: </b>", round(mean(x$values)/nrow(predictedDMIs()),2))
+  ob_fdr <- x[x$values <= nrow(predictedDMIs()), ]
+    #axis(side=3, lwd = 0, lwd.ticks = 4, at=nrow(predictedDMIs()), lend=1, labels = FALSE, tcl=5, font=2, col = "black", padj = 0, lty = 3)
+    #shows the observed value
+    mtext(paste("Observed value is: ", nrow(predictedDMIs())), side = 3, at=nrow(predictedDMIs()), font = 4)
+    mtext(paste0("P-value is: ", length(x[x >= nrow(predictedDMIs())])/1000), side = 3, at=nrow(predictedDMIs())+90, font = 4, col = "red")
+    #mtext(paste0("Mean is: ", mean(x$values)), side = 3, at=mean(x$values), font = 4, col="red")
+    #mtext(paste0("FDR is: ", mean(x$values)/nrow(predictedDMIs())), side = 3, at=50, font = 4, col= "red")
+    #points arrow on the observed value
+    arrows(nrow(predictedDMIs()), 480, nrow(predictedDMIs()), 0, lwd = 2, col = "black", length = 0.1, lty = 3)
+    pvalue <-  paste0("<b>P-value is: </b>", length(x[x >= nrow(predictedDMIs())])/1000)
+    meanvalue <- paste0("<b>Mean is: </b>", round(mean(x$values)))
+    Escore <- paste0("<b>Enrichment score (E-score) is: </b>", round(nrow(predictedDMIs())/mean(x$values),2))
+    FDR <- paste0("<b>False Discrovery Rate (FDR) is: </b>", round(mean(ob_fdr)/nrow(predictedDMIs()),2))
     output$summary <- renderUI({
 
     HTML(paste("<font color=\"#FF0000\"><b>Summary of Histogram</b></font>", pvalue, meanvalue, Escore, FDR, sep = '<hr/>'))
