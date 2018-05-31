@@ -86,7 +86,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
           fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv'))),
       div (id = "note", "Note: To analyze example dataset, press 'Run' without uploading any files"),
       hr(),
-      div (id = "update", "Last updated: 26-Sep-2017")
+      div (id = "update", "Last updated: 31-Mar-2018")
     ),
     
     # MainPanel
