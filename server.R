@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.1.1
+# Version: 1.2.0
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -21,6 +21,7 @@
 #V1.0.9 - Reads SLiMProb REST server output through Job Id.
 #V1.1.0 - Added new tab to show distribution of Domains in the predicted DMI dataset.
 #V1.1.1 - New FDR calculation
+#V1.2.0 - Uses known and predicted ELM information. Predicts DMIs based on domains as well as based on proteins.
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -99,8 +100,8 @@ server <- shinyServer(function(input, output, session){
     
     SliMJobId <- input$SLiMRun
     if(is.null(MotifFile) && SliMJobId == "" ){
-      showNotification("SLiMProbe file is missing. Loading Example dataset", type = "error", duration = 5)
-      showNotification("Loaded Example dataset", type = "warning", duration = NULL)
+      showNotification("SLiM file is missing. Loading Example Dataset", type = "error", duration = 5)
+      showNotification("Loaded Example Dataset", type = "warning", duration = NULL)
       
   }
     })
@@ -117,8 +118,14 @@ server <- shinyServer(function(input, output, session){
     MotifFile<-input$Motif
     
     if(is.null(MotifFile)){
-     #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
-      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+      if(input$options == "pred"){
+        #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+        Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+      }
+     else if(input$options == "true") {
+       
+       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+     }
     }
     
     else{
@@ -173,7 +180,7 @@ server <- shinyServer(function(input, output, session){
     
     
   },
-  caption = tags$h4(tags$strong("SLiM Prediction File"))
+  caption = tags$h4(tags$strong("SLiM File"))
   )
   output$udata2<-renderDataTable({
     
@@ -211,6 +218,7 @@ server <- shinyServer(function(input, output, session){
   potentialDMIs <-eventReactive(input$run, {
     #File upload check
     MotifFile<-input$Motif
+
     
     #File upload check
     DomainFile<-input$domain
@@ -241,16 +249,23 @@ server <- shinyServer(function(input, output, session){
       Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
     }
     else{
-    if(is.null(MotifFile)){
-      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
-    }
-    
-    else{
-      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    
-    #Read uploaded files
-    Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    }
+      MotifFile<-input$Motif
+      
+      if(is.null(MotifFile)){
+        if(input$options == "pred"){
+          #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+          Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        }
+        else if(input$options == "true") {
+          
+          Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+        }
+      }
+      
+      else{
+        #Read uploaded files
+        Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+      }
     }
     Motif <- lowername(Motif)
     Motif <- Motif[, c("accnum","motif")]
@@ -262,22 +277,38 @@ server <- shinyServer(function(input, output, session){
     #Rename the columns in two files
     names(Motif_NR) <- c("Seq", "Motif")
     names(Domain) <- c("Motif", "Domain")
-    #Join/Merge two files based on Motif
-    Join <- merge(Motif_NR, Domain, by="Motif")
-    names(Join) <- c("Motif", "Seq", "Domain")  #Change header of the output file
-    #Domain-dProtein Mapping
-    #Load results from the previous code)
-    names(dProtein) <- c("Domain", "dProteins")
-    #joined both files based on domain
-    DMI <- merge(Join, dProtein,by="Domain")
-    #Filtered unique DMIs
-    Uni_DMI <- unique(DMI)
-    #Named the header of output file
-    names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
-    Uni_DMI <- Uni_DMI[, c("mProtein","Motif", "Domain", "dProtein")]
-    print(Uni_DMI)
-    
+    if(input$withPro == TRUE){
+      names(dProtein) <- c("Domain", "dProtein")
+      #merge motif-domain and domain files
+      elmPro <- merge(Domain, dProtein, by = "Domain")
+      elmPro <- elmPro[, c("Motif","dProtein")]
+      #Join/Merge two files based on Motif
+      DMI <- merge(Motif_NR, elmPro, by="Motif")
+      head(DMI)
+      Uni_DMI <- unique(DMI)
+      names(Uni_DMI) <- c("mProtein","Motif", "dProtein")
+      Uni_DMI <- Uni_DMI[, c("mProtein" ,"Motif", "dProtein")]
+      print(Uni_DMI)
+    } else{
+   
+      #Join/Merge two files based on Motif
+      Join <- merge(Motif_NR, Domain, by="Motif")
+      names(Join) <- c("Motif", "Seq", "Domain")  
+      #Domain-dProtein Mapping
+      #Load results from the previous code)
+      names(dProtein) <- c("Domain", "dProteins")
+      #joined both files based on domain
+      DMI <- merge(Join, dProtein,by="Domain")
+      #Filtered unique DMIs
+      Uni_DMI <- unique(DMI)
+      #Named the header of output file
+      names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
+      Uni_DMI <- Uni_DMI[, c("mProtein","Motif", "Domain", "dProtein")]
+      print(Uni_DMI)
+    }
+    return(Uni_DMI)
   })
+  
   
   #shows the data table
   output$data<-DT::renderDataTable({
@@ -311,6 +342,7 @@ server <- shinyServer(function(input, output, session){
       compute_data(updateProgress)
       formatStyle(datatable(potentialDMIs()), columns = 1:4, color = "black")
     }
+  
   })
   #*************************************************************************************
   
@@ -321,14 +353,23 @@ server <- shinyServer(function(input, output, session){
       Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
     }
     else{
-    MotifFile<-input$Motif
-    if(is.null(MotifFile)){
-      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
-    }
-    
-    else{
-      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    }
+      MotifFile<-input$Motif
+      
+      if(is.null(MotifFile)){
+        if(input$options == "pred"){
+          #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+          Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        }
+        else if(input$options == "true") {
+          
+          Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+        }
+      }
+      
+      else{
+        #Read uploaded files
+        Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+      }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -369,8 +410,31 @@ server <- shinyServer(function(input, output, session){
     Motif_NR<-unique(Motif)
     
     #Rename the columns in two files
-    names(Motif_NR) <- c("Seq", "Motif")
+    names(Motif_NR) <- c("mProtein", "Motif")
     names(Domain) <- c("Motif", "Domain")
+    
+    if(input$withPro == TRUE){
+      names(dProtein) <- c("Domain", "dProtein")
+      #merge motif-domain and domain files
+      elmPro <- merge(Domain, dProtein, by = "Domain")
+      elmPro <- elmPro[, c("Motif","dProtein")]
+      #Join/Merge two files based on Motif
+      DMI <- merge(Motif_NR, elmPro, by="Motif")
+      head(DMI)
+      Uni_DMI <- unique(DMI)
+      #names(Uni_DMI) <- c("mProtein","Motif", "dProtein")
+      #Uni_DMI <- Uni_DMI[, c("mProtein" ,"Motif", "dProtein")]
+      print(Uni_DMI)
+      #PPI-DMI Mapping
+      ########################################################################
+      names(PPI2) <- c("mProtein", "dProtein")
+      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
+      Uni_predDMIs <- unique(predDMI)
+      #names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+      predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "dProtein")]
+      print(predDMIs)
+      
+    } else{
     #Join/Merge two files based on Motif
     Join <- merge( Motif_NR, Domain, by="Motif")
     #print(Join)
@@ -393,6 +457,8 @@ server <- shinyServer(function(input, output, session){
     names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
     predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
     print(predDMIs)
+    }
+    return(predDMIs)
   })
   #Shows predicted DMIs in DataTable
   output$PredDMIs<-DT::renderDataTable({
@@ -437,14 +503,23 @@ server <- shinyServer(function(input, output, session){
       Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
     }
     else{
-    MotifFile<-input$Motif
-    if(is.null(MotifFile)){
-      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
-    }
-    
-    else{
-      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    }
+      MotifFile<-input$Motif
+      
+      if(is.null(MotifFile)){
+        if(input$options == "pred"){
+          #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+          Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        }
+        else if(input$options == "true") {
+          
+          Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+        }
+      }
+      
+      else{
+        #Read uploaded files
+        Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+      }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -488,8 +563,57 @@ server <- shinyServer(function(input, output, session){
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     #Rename the columns in two files
-    names( Motif_NR) <- c("Seq", "Motif")
+    #Rename the columns in two files
+    names(Motif_NR) <- c("mProtein", "Motif")
     names(Domain) <- c("Motif", "Domain")
+    
+    if(input$withPro == TRUE){
+      names(dProtein) <- c("Domain", "dProtein")
+      #merge motif-domain and domain files
+      elmPro <- merge(Domain, dProtein, by = "Domain")
+      elmPro <- elmPro[, c("Motif","dProtein")]
+      #Join/Merge two files based on Motif
+      DMI <- merge(Motif_NR, elmPro, by="Motif")
+      head(DMI)
+      Uni_DMI <- unique(DMI)
+      #names(Uni_DMI) <- c("mProtein","Motif", "dProtein")
+      #Uni_DMI <- Uni_DMI[, c("mProtein" ,"Motif", "dProtein")]
+      print(Uni_DMI)
+      #PPI-DMI Mapping
+      ########################################################################
+      names(PPI2) <- c("mProtein", "dProtein")
+      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
+      Uni_predDMIs <- unique(predDMI)
+      #names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+      predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "dProtein")]
+      print(predDMIs)
+      colors=c("cadetblue1", "deepskyblue2", "darkblue")
+      #Select unique Motif
+      uniq_Motif <- unique(predDMI$Motif)
+      a <- length(uniq_Motif)
+      #Select unique mProtein
+      uniq_mProtein <- unique(predDMI$mProtein)
+      c <- length(uniq_mProtein)
+      #Select unique dProteins
+      uniq_dProtein <- unique(predDMI$dProtein)
+      d <- length(uniq_dProtein)
+      uniq_count<-c(a = length(uniq_Motif), c = length(uniq_mProtein), d = length(uniq_dProtein))
+      #Create pie chart
+      x <- c(a,c,d)
+      
+      statdmi <- data.frame(
+        Datatype = factor(c("Motif","mProtein","dProtein")),
+        Numbers = c(a,c,d)
+      )
+      
+      p <- ggplot(data=statdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
+        geom_bar(colour="black", stat="identity") +
+        guides(fill=FALSE)+
+        scale_fill_manual(values = c("#85C1E9", "gold", "red"))
+      
+      p <- ggplotly(p)
+      
+    }else{
     #Join/Merge two files based on Motif
     Join <- merge( Motif_NR, Domain, by="Motif")
     #print(Join)
@@ -545,7 +669,8 @@ server <- shinyServer(function(input, output, session){
     
     #legend("topright",
     #legend = c(paste("Motif=",a),paste("Domain=",b),paste("Motif containing Proteins=",c),paste("Domain containing Proteins=",d)), fill = colors)
-    
+    }
+    p
   })
   output$plotbar <- renderPlotly({
     if(input$run){
@@ -584,14 +709,23 @@ server <- shinyServer(function(input, output, session){
       Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
     }
     else{
-    MotifFile<-input$Motif
-    if(is.null(MotifFile)){
-      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
-    }
-    
-    else{
-      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    }
+      MotifFile<-input$Motif
+      
+      if(is.null(MotifFile)){
+        if(input$options == "pred"){
+          #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+          Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        }
+        else if(input$options == "true") {
+          
+          Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+        }
+      }
+      
+      else{
+        #Read uploaded files
+        Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+      }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -635,8 +769,54 @@ server <- shinyServer(function(input, output, session){
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     #Rename the columns in two files
-    names( Motif_NR) <- c("Seq", "Motif")
+    names(Motif_NR) <- c("mProtein", "Motif")
     names(Domain) <- c("Motif", "Domain")
+    
+    if(input$withPro == TRUE){
+      names(dProtein) <- c("Domain", "dProtein")
+      #merge motif-domain and domain files
+      elmPro <- merge(Domain, dProtein, by = "Domain")
+      elmPro <- elmPro[, c("Motif","dProtein")]
+      #Join/Merge two files based on Motif
+      DMI <- merge(Motif_NR, elmPro, by="Motif")
+      head(DMI)
+      Uni_DMI <- unique(DMI)
+      #names(Uni_DMI) <- c("mProtein","Motif", "dProtein")
+      #Uni_DMI <- Uni_DMI[, c("mProtein" ,"Motif", "dProtein")]
+      print(Uni_DMI)
+      #PPI-DMI Mapping
+      ########################################################################
+      names(PPI2) <- c("mProtein", "dProtein")
+      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
+      Uni_predDMIs <- unique(predDMI)
+      #names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+      predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "dProtein")]
+      print(predDMIs)
+      df_pred <- data.frame(predDMIs)["Motif"]
+      names(df_pred) <- "Motif"
+      print(df_pred)
+      for (i in 1:length(df_pred)) {
+        Matches <- count(df_pred)
+        #names(Matches) <- "Frequency"
+        #col <- cbind(df_pred,newcol)
+        print(Matches)
+        #
+        
+      }
+      
+      df_pred2 <- data.frame(Matches)[,(1:2)]
+      names(df_pred2) <- c("ELM","Freq")
+      print(df_pred2)
+      Frequency <- df_pred2$Freq
+      ELMs_names <- df_pred2$ELM
+      df_pred2 <- data.frame(ELMs_names,Frequency)
+      pvalueelm <- round(df_pred2$Frequency/nrow(df_pred),2)
+      pvaluecol <- cbind(df_pred2,pvalueelm)
+      names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
+      GeneOntology <- merge(pvaluecol,GOterms, by="ELM")
+      GeneOntology
+      
+    } else{
     #Join/Merge two files based on Motif
     Join <- merge( Motif_NR, Domain, by="Motif")
     #print(Join)
@@ -679,6 +859,7 @@ server <- shinyServer(function(input, output, session){
     names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
     GeneOntology <- merge(pvaluecol,GOterms, by="ELM")
     GeneOntology
+    }
   })
   
   output$diselmsdata <-DT::renderDataTable({
@@ -719,14 +900,23 @@ server <- shinyServer(function(input, output, session){
       Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
     }
     else{
-    MotifFile<-input$Motif
-    if(is.null(MotifFile)){
-      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
-    }
-    
-    else{
-      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    }
+      MotifFile<-input$Motif
+      
+      if(is.null(MotifFile)){
+        if(input$options == "pred"){
+          #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+          Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        }
+        else if(input$options == "true") {
+          
+          Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+        }
+      }
+      
+      else{
+        #Read uploaded files
+        Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+      }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -866,11 +1056,20 @@ server <- shinyServer(function(input, output, session){
     }
     else{
       MotifFile<-input$Motif
+      
       if(is.null(MotifFile)){
-        Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        if(input$options == "pred"){
+          #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+          Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        }
+        else if(input$options == "true") {
+          
+          Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+        }
       }
       
       else{
+        #Read uploaded files
         Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
       }
     }
@@ -980,7 +1179,7 @@ server <- shinyServer(function(input, output, session){
           value <- progress$getValue()
           value <- value + (progress$getMax() - value) / 5
         }
-        progress$set(value = value, detail = "ELM distribution")
+        progress$set(value = value, detail = "Domain distribution")
       }
       
       # Compute the new data, and pass in the updateProgress function so
@@ -997,11 +1196,20 @@ server <- shinyServer(function(input, output, session){
     }
     else{
       MotifFile<-input$Motif
+      
       if(is.null(MotifFile)){
-        Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        if(input$options == "pred"){
+          #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+          Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        }
+        else if(input$options == "true") {
+          
+          Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+        }
       }
       
       else{
+        #Read uploaded files
         Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
       }
     }
@@ -1147,14 +1355,23 @@ server <- shinyServer(function(input, output, session){
       Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
     }
     else{
-    MotifFile<-input$Motif
-    if(is.null(MotifFile)){
-      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
-    }
-    
-    else{
-      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    }
+      MotifFile<-input$Motif
+      
+      if(is.null(MotifFile)){
+        if(input$options == "pred"){
+          #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+          Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        }
+        else if(input$options == "true") {
+          
+          Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+        }
+      }
+      
+      else{
+        #Read uploaded files
+        Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+      }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -1197,8 +1414,88 @@ server <- shinyServer(function(input, output, session){
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     #Rename the columns in two files
-    names( Motif_NR) <- c("Seq", "Motif")
+    names(Motif_NR) <- c("mProtein", "Motif")
     names(Domain) <- c("Motif", "Domain")
+    
+    if(input$withPro == TRUE){
+      names(dProtein) <- c("Domain", "dProtein")
+      #merge motif-domain and domain files
+      elmPro <- merge(Domain, dProtein, by = "Domain")
+      elmPro <- elmPro[, c("Motif","dProtein")]
+      #Join/Merge two files based on Motif
+      DMI <- merge(Motif_NR, elmPro, by="Motif")
+      head(DMI)
+      Uni_DMI <- unique(DMI)
+      #names(Uni_DMI) <- c("mProtein","Motif", "dProtein")
+      #Uni_DMI <- Uni_DMI[, c("mProtein" ,"Motif", "dProtein")]
+      print(Uni_DMI)
+      #PPI-DMI Mapping
+      ########################################################################
+      names(PPI) <- c("mProtein", "dProtein")
+      predDMI <- merge(PPI, Uni_DMI, by= c("mProtein", "dProtein"))
+      Uni_predDMIs <- unique(predDMI)
+      #names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+      predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "dProtein")]
+      print(predDMIs)
+      #Randomization/Permutations
+      ##############################################################################
+      PPI_data <- PPI
+      PPI_data <- unique(PPI)
+      names(PPI_data) <- c("mProtein", "dProtein")
+      PPI_Matrix<-matrix(data = PPI_data$mProtein)
+      PPI_Matrix2<-matrix(data = PPI_data$dProtein)
+      PermutationFunction <- function (data, k) {
+        
+        # creating matrix: amount of variables * amount of permutations
+        permutations <- matrix(1:(k * length(data[1, ])), nrow=k)
+        row <- NULL
+        
+        # For loop runs for i number of times from 1:length(data[1,])) (*which is number of rows in the dataset*).
+        #sample(data[ , i] randomizes the column
+        #k is the number of entries in the dataset
+        for (i in 1:length(data[1,])) {
+          permutations[ ,i] <- sample(data[ , i], k, replace=FALSE)
+        }
+        permutations
+      }
+      #dir.create("RandomFiles")
+      
+      #dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
+      #dir.create(dirName)
+      #for loop to create 1000 randomized files
+      showNotification("Performing the randomizations", type = "message", duration = 5)
+      data <- list()
+      for (j in 1:1000) {
+        permutation<-PermutationFunction(PPI_Matrix, k = length(PPI_Matrix))
+        permutation2<-PermutationFunction(PPI_Matrix2, k = length(PPI_Matrix2))
+        final_file<- c(paste(permutation,permutation2, sep = ":"))
+        newCol1<-strsplit(as.character(final_file),':',fixed=TRUE)
+        df<-data.frame(final_file,do.call(rbind, newCol1))
+        subset = df[,c(2,3)]
+        names(subset)<-c("mProtein", "dProtein")
+        data[[j]] <- subset
+        #head(data[[j]])
+        #write.csv(perm, "rPPI.csv", row.names = FALSE)
+      }
+      #rPPI-DMI Mapping                                                               
+      #################################################################################
+      showNotification("1000 random PPI files have been created", type = "message", duration = 5)
+      showNotification("Now predicing DMIs from the random PPI data", type = "message", closeButton = TRUE,duration = 15)
+      m <- data.frame()
+      for (i in 1:1000) {
+        rPPI <- data[[i]]
+        names(rPPI)<-c("mProtein", "dProtein")
+        #names(Uni_DMI) <- c("Domain", "Motif", "MotifProtein", "DomainProtein")
+        DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
+        Matches <- nrow(DMI_rPPI)
+        print(Matches)
+        dmatch <- data.frame(Matches)
+        m=rbind(m,dmatch)
+        row.names(m) <- NULL
+      }
+      
+      } else{
+        
     #Join/Merge two files based on Motif
     Join <- merge( Motif_NR, Domain, by="Motif")
     #print(Join)
@@ -1273,7 +1570,7 @@ server <- shinyServer(function(input, output, session){
     m=rbind(m,dmatch)
     row.names(m) <- NULL
   }
-  
+      }
   #output_randomNumbers <- write.csv(m, paste0("randomNumbers.csv"), row.names = FALSE)
   m
 })
@@ -1320,14 +1617,23 @@ server <- shinyServer(function(input, output, session){
       Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
     }
     else{
-    MotifFile<-input$Motif
-    if(is.null(MotifFile)){
-      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
-    }
-    
-    else{
-      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    }
+      MotifFile<-input$Motif
+      
+      if(is.null(MotifFile)){
+        if(input$options == "pred"){
+          #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+          Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        }
+        else if(input$options == "true") {
+          
+          Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+        }
+      }
+      
+      else{
+        #Read uploaded files
+        Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+      }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -1461,14 +1767,23 @@ mynetwork <- function(){
       Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
     }
     else{
-    MotifFile<-input$Motif
-    if(is.null(MotifFile)){
-      Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
-    }
-    
-    else{
-      Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    }
+      MotifFile<-input$Motif
+      
+      if(is.null(MotifFile)){
+        if(input$options == "pred"){
+          #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
+          Motif<-read.csv("example/slimprob.occ.csv",header=TRUE,sep=",")
+        }
+        else if(input$options == "true") {
+          
+          Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
+        }
+      }
+      
+      else{
+        #Read uploaded files
+        Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
+      }
     }
     PPIFile<-input$PPI
     if(is.null(PPIFile)){
@@ -1509,8 +1824,62 @@ mynetwork <- function(){
     names(Motif) <- c("UniprotID","Motif")
     Motif_NR<-unique(Motif)
     #Rename the columns in two files
-    names( Motif_NR) <- c("Seq", "Motif")
+    names(Motif_NR) <- c("mProtein", "Motif")
     names(Domain) <- c("Motif", "Domain")
+    
+    if(input$withPro == TRUE){
+      names(dProtein) <- c("Domain", "dProtein")
+      #merge motif-domain and domain files
+      elmPro <- merge(Domain, dProtein, by = "Domain")
+      elmPro <- elmPro[, c("Motif","dProtein")]
+      #Join/Merge two files based on Motif
+      DMI <- merge(Motif_NR, elmPro, by="Motif")
+      head(DMI)
+      Uni_DMI <- unique(DMI)
+      #names(Uni_DMI) <- c("mProtein","Motif", "dProtein")
+      #Uni_DMI <- Uni_DMI[, c("mProtein" ,"Motif", "dProtein")]
+      print(Uni_DMI)
+      #PPI-DMI Mapping
+      ########################################################################
+      names(PPI2) <- c("mProtein", "dProtein")
+      predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
+      Uni_predDMIs <- unique(predDMI)
+      #names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+      predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "dProtein")]
+      print(predDMIs)
+      if(nrow(predDMIs) != 0){
+        #Network
+        
+        first <- predDMI[,c("mProtein","Motif")]
+        g <- graph.data.frame(first, directed = F)
+        #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
+        V(g)$color <- ifelse(V(g)$name %in% predDMI[,1], "#A93226", "#F7DC6F")
+        V(g)$shape <- ifelse(V(g)$name %in% predDMI[,1], "square", "box")
+    
+        second <- predDMI[,c("Motif","dProtein")]
+        g2 <- graph.data.frame(second, directed = F)
+        #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
+        V(g2)$color <- ifelse(V(g2)$name %in% predDMI[,2], "#85C1E9", "#85C1E9")
+        V(g2)$shape <- ifelse(V(g2)$name %in% predDMI[,2], "circle", "vrectangle")
+        
+        
+        #merge networks
+        g4 = graph.union(g,g2, byname = TRUE)
+        #g4 <- g %u% g2 %u% g3
+        g5 <- simplify(g4, remove.multiple = TRUE, remove.loops = TRUE)
+        #plot.igraph(g5, layout=layout.fruchterman.reingold)
+        V(g5)$color <- ifelse(is.na(V(g5)$color_1),
+                              V(g5)$color_2,V(g5)$color_1)
+        V(g5)$shape <- ifelse(is.na(V(g5)$shape_1),
+                              V(g5)$shape_2,V(g5)$shape_1)
+        E(g5)$color <- "black"
+        E(g)$width <- 9
+        g6 <- visIgraph(g5,layout = input$selectlayout, physics = FALSE, smooth = TRUE, type = "square")
+        #visExport(g6, type = "png", name = "export-network",float = "left", label = "Save network", background = "white", style= "")
+        
+      }
+    }else{
+      
     #Join/Merge two files based on Motif
     Join <- merge( Motif_NR, Domain, by="Motif")
     #print(Join)
@@ -1582,6 +1951,7 @@ mynetwork <- function(){
       #visExport(g6, type = "png", name = "export-network",float = "left", label = "Save network", background = "white", style= "")
       
     }
+  }
   }
 }
 output$network <- renderVisNetwork({
