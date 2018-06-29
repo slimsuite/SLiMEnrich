@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.1.1
+# Version: 1.2.0
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -21,6 +21,7 @@
 #V1.0.9 - Reads SLiMProb REST server output through Job Id.
 #V1.1.0 - Added new tab to show distribution of Domains in the predicted DMI dataset.
 #V1.1.1 - New FDR calculation
+#V1.2.0 - Uses known and predicted ELM information. Predicts DMIs based on domains as well as based on proteins.
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -29,7 +30,7 @@
 ##############################
 #Required Libraries
 ##############################
-package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr")
+package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
 for(package_name in package_names) 
 { 
   library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
@@ -69,7 +70,8 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                   background-color: black;
                   font-weight: bold;
                   font-size: 10;
-}
+                  }
+                 
                   " ))
   ),
   # Sidebar
@@ -77,16 +79,34 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
     sidebarPanel(
       fileInput("PPI","Select Interaction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
       
-      div(id = "slimf", fileInput("Motif","Select SLiM prediction file (e.g. SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv'))),
-      div(id = "slimupload", checkboxInput("SLiMrunid", label = "Provide SLiMProb Job ID", value = FALSE)),
+
       div(id = "slimrun", textInput("SLiMRun", label = "", value = "")),
       actionButton("run", "Run", width = "100px"),
-      div(id="fileuploads",checkboxInput("uploadmotifs",label = "Upload Domain and/or Motif-Domain Files", value = FALSE)),
+      hr(),
+      
+      prettyRadioButtons(inputId = "options",
+                         label = "Motif Prediction Type", icon = icon("check"),
+                         choices = c("Known SLiMs" = "true", "Predicted SLiMs" = "pred"),
+                         animation = "pulse", status = "info"),
+      hr(),
+      div(class="pretty p-switch p-fill",prettyCheckbox("withPro", label = tags$b("Protein Motif Interaction (PMI)"), value = FALSE, status = "info", 
+                                          
+                                          animation = "pulse")),
+      hr(),
+      div(id="fileuploads",prettyCheckbox("uploadmotifs",label = tags$b("Upload Files"), value = FALSE, status = "warning",
+                                          icon = icon("check"),
+                                          animation = "pulse")),
+      hr(),
+      
       div(id="uploadmotif",  fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-          fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv'))),
+          fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+          fileInput("Motif","Select SLiM prediction file (e.g. SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+          prettyCheckbox("SLiMrunid", label = "Provide SLiMProb Job ID", status = "default",
+                         icon = icon("check"),
+                         animation = "pulse")),
       div (id = "note", "Note: To analyze example dataset, press 'Run' without uploading any files"),
       hr(),
-      div (id = "update", "Last updated: 31-Mar-2018")
+      div (id = "update", "Last updated: 29-Jun-2018")
     ),
     
     # MainPanel
@@ -129,15 +149,15 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                       
                         checkboxInput("barlabel", label="Bar Labels", value = FALSE, width = NULL),
                         div(id="txtbox", textInput("text3", label = "Main title", value = "Distribution of random DMIs")),
-                        div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Numbers of random DMIs")),
+                        div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Number of random DMIs")),
                         tags$style(type="text/css", "#txtbox {display: inline-block; max-width: 200px; }"),
                         div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
                         div(id="txtbox",numericInput("xlimstart", label = "X-axis Start",0)),
-                        div(id="txtbox",numericInput("xlimend", label = "X-axis End",300)),
+                        div(id="txtbox",numericInput("xlimend", label = "X-axis End",200)),
                         tags$hr(),
                         tags$h4(tags$strong("Select Colors")),
                         
-                        div(id="txtbox",colourpicker::colourInput("col", "Select bar colour", "deepskyblue1")),
+                        div(id="txtbox",colourpicker::colourInput("col", "Select bar colour", "firebrick3")),
                         div(id="txtbox",colourpicker::colourInput("col2", "Select background colour", "white")),
                         tags$hr(),
                         tags$h4(tags$strong("Select width/height to download plot as png")),
