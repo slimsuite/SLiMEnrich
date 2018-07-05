@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.2.0
+# Version: 1.1.1
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -21,7 +21,7 @@
 #V1.0.9 - Reads SLiMProb REST server output through Job Id.
 #V1.1.0 - Added new tab to show distribution of Domains in the predicted DMI dataset.
 #V1.1.1 - New FDR calculation
-#V1.2.0 - Uses known and predicted ELM information. Predicts DMIs based on domains as well as based on proteins.
+#V1.2.0 - DMIs linked via Domains and Proteins
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -54,16 +54,16 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                   50% {color: black;}
                   }
                   .shiny-notification {
-                    font-weight: bold;
-                    bottom: calc(0%)
-                    width: calc(100%)
+                  font-weight: bold;
+                  bottom: calc(0%)
+                  width: calc(100%)
                   }
                   #note{
                   color: red;
                   background-color: white;
                   font-size: 10;
                   font-weight: bold;
-
+                  
                   }
                   #update{
                   color: white;
@@ -71,7 +71,13 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                   font-weight: bold;
                   font-size: 10;
                   }
-                 
+                  #info{
+                  background-color: white;
+color: black;
+                  font-weight: bold;
+                  font-size: 10;
+                  }
+                  
                   " ))
   ),
   # Sidebar
@@ -79,28 +85,27 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
     sidebarPanel(
       fileInput("PPI","Select Interaction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
       
-
+      
       div(id = "slimrun", textInput("SLiMRun", label = "", value = "")),
       actionButton("run", "Run", width = "100px"),
       hr(),
       
-      prettyRadioButtons(inputId = "options",
-                         label = "Motif Prediction Type", icon = icon("check"),
-                         choices = c("Known SLiMs" = "true", "Predicted SLiMs" = "pred"),
-                         animation = "pulse", status = "info"),
+      prettyRadioButtons(inputId = "withPro",
+                         label = "Interaction Type", icon = icon("check"),
+                         choices = c("Domain Motif Interactions" = "dmi", "Protein Motif Interactions" = "pmi"),
+                         animation = "pulse", status = "warning"),
       hr(),
-      div(class="pretty p-switch p-fill",prettyCheckbox("withPro", label = tags$b("Protein Motif Interaction (PMI)"), value = FALSE, status = "info", 
-                                          
-                                          animation = "pulse")),
-      hr(),
-      div(id="fileuploads",prettyCheckbox("uploadmotifs",label = tags$b("Upload Files"), value = FALSE, status = "warning",
+      div(id="fileuploads",prettyCheckbox("uploadmotifs",label = tags$b("Upload Files"), value = FALSE, status = "info",
                                           icon = icon("check"),
                                           animation = "pulse")),
       hr(),
       
-      div(id="uploadmotif",  fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+      div(id="uploadmotif", fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+          div(id = "info", "Domain and Domain containing proteins"),hr(),
           fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-          fileInput("Motif","Select SLiM prediction file (e.g. SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+          div(id = "info", "Motif and interacting Domains"),hr(),
+          fileInput("Motif","Select SLiM file (e.g. SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+          div(id = "info", "Motif containing proteins and their interacting ELMs"),hr(),
           prettyCheckbox("SLiMrunid", label = "Provide SLiMProb Job ID", status = "default",
                          icon = icon("check"),
                          animation = "pulse")),
@@ -146,7 +151,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                                                    value = 30),
                         tags$hr(),
                         tags$h4(tags$strong("Select labels")),
-                      
+                        
                         checkboxInput("barlabel", label="Bar Labels", value = FALSE, width = NULL),
                         div(id="txtbox", textInput("text3", label = "Main title", value = "Distribution of random DMIs")),
                         div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Number of random DMIs")),
@@ -162,9 +167,9 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                         tags$hr(),
                         tags$h4(tags$strong("Select width/height to download plot as png")),
                         
-                        div(id="txtbox",numericInput("width", label = "Width ", value = 1200)),
-                        div(id="txtbox",numericInput("height", label = "Height ", value = 700))
-   
+                        div(id="txtbox",numericInput("width", label = "Width ", value = 2600)),
+                        div(id="txtbox",numericInput("height", label = "Height ", value = 1600))
+                        
                     )),
                   tabPanel("Distribution of ELMs",
                            DT::dataTableOutput("diselmsdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godis", "Interactive View"))
@@ -195,7 +200,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
   
   
   tabPanel(HTML("</a></li><li><a href=\"https://github.com/slimsuite/SLiMEnrich/wiki/Quick-Tutorial\", target = _blank>Getting Started")),tabPanel(HTML("</a></li><li><a href=\"https://github.com/slimsuite/SLiMEnrich/wiki\", target = _blank>Instructions"
-                         )), useShinyjs(),theme = shinytheme("sandstone"),
+  )), useShinyjs(),theme = shinytheme("sandstone"),
   tags$style(type="text/css", "#title {font-family: 'Impact', cursive;
              font-size: 32px;
              font-style:italic;
@@ -204,6 +209,6 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
              -webkit-text-stroke-color: black;}")
   
   
-))
+  ))
 
 
