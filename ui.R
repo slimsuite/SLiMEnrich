@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.1.1
+# Version: 1.2.0
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -73,7 +73,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                   }
                   #info{
                   background-color: white;
-color: black;
+                  color: black;
                   font-weight: bold;
                   font-size: 10;
                   }
@@ -90,9 +90,12 @@ color: black;
       actionButton("run", "Run", width = "100px"),
       hr(),
       
-      prettyRadioButtons(inputId = "withPro",
-                         label = "Interaction Type", icon = icon("check"),
-                         choices = c("Domain Motif Interactions" = "dmi", "Protein Motif Interactions" = "pmi"),
+      prettyRadioButtons(inputId = "DMIStrategy",
+                         label = "DMI Strategy", icon = icon("check"),
+                         choices = c("Link mProteins directly to dProteins (ELMi-Protein)" = "elmiprot", 
+                                     "Link Motif classes directly to dProteins (ELMc-Protein)" = "elmcprot",
+                                     "Link Motif classes to binding domains (ELMc-Domain)" = "elmcdom"),
+                         selected = "elmcprot",
                          animation = "pulse", status = "warning"),
       hr(),
       div(id="fileuploads",prettyCheckbox("uploadmotifs",label = tags$b("Upload Files"), value = FALSE, status = "info",
@@ -100,17 +103,33 @@ color: black;
                                           animation = "pulse")),
       hr(),
       
-      div(id="uploadmotif", fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-          div(id = "info", "Domain and Domain containing proteins"),hr(),
+      div(id="uploadmotif", 
+          fileInput("domain","Select Domain file (Domain-dProtein)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
           fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-          div(id = "info", "Motif and interacting Domains"),hr(),
-          fileInput("Motif","Select SLiM file (e.g. SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-          div(id = "info", "Motif containing proteins and their interacting ELMs"),hr(),
-          prettyCheckbox("SLiMrunid", label = "Provide SLiMProb Job ID", status = "default",
+          fileInput("Motif","Select Motif file (mProtein-Motif, e.g. ELM or SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+          prettyCheckbox("SLiMrunid", label = "Provide SLiMProb Job ID (Replaces Motif File)", status = "default",
                          icon = icon("check"),
-                         animation = "pulse")),
+                         animation = "pulse")
+      ),
+      
       div (id = "note", "Note: To analyze example dataset, press 'Run' without uploading any files"),
       hr(),
+      div(id="advsettings", 
+          div(id = "info", "Domain and Domain containing proteins"),hr(),
+          # Default fields are from the Uniprot Pfam domain table
+          textInput(inputId="domaindomain",label = "Domain file domain column", value = "pfam"),
+          textInput(inputId="domaindprotein",label = "Domain file dProtein column", value = "accnum"),
+          
+          div(id = "info", "Motif and interacting Domains"),hr(),
+          # Default fields are from the ELM interactions table
+          textInput(inputId="dmimotif",label = "DMI file Motif column", value = "Elm"),
+          textInput(inputId="dmidomain",label = "DMI file Domain column", value = "interactorDomain"),
+          
+          div(id = "info", "Motif containing proteins and their interacting ELMs"),hr(),
+          # Default fields are from the ELM instances table, reformatted to match SLiMProb
+          textInput(inputId="motifmprotein",label = "Motif file mProtein column", value = "AccNum"),
+          textInput(inputId="motifmotif",label = "Motif file Motif column", value = "Motif")
+      ),
       div (id = "update", "Last updated: 29-Jun-2018")
     ),
     
@@ -210,5 +229,4 @@ color: black;
   
   
   ))
-
 
