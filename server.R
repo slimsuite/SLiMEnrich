@@ -1261,6 +1261,7 @@ server <- shinyServer(function(input, output, session){
       rPPI <- data[[i]]
       names(rPPI)<-c("mProtein", "dProtein")
       DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
+      DMI_rPPI = unique(DMI_rPPI[,c("mProtein","dProtein")])
       Matches <- nrow(DMI_rPPI)
       print(Matches)
       dmatch <- data.frame(Matches)
