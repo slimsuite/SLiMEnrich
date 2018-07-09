@@ -2,7 +2,7 @@
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
 # Developer: **Sobia Idrees**
-# Version: 1.0.2
+# Version: 1.0.5
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -13,6 +13,7 @@
 #V1.0.2-  Added commandline arguments to select files
 #V1.0.3- Added Escore (Enrichment score)
 #V1.0.4- Removes redundant PPIs
+#V1.0.5- New FDR calculation and non-redundant predicted DMIs
 ##############################
 # Argument Description
 #SLiMs file option
@@ -132,7 +133,7 @@ Uni_predDMIs <- unique(predDMI)
 names(Uni_predDMIs) <- c("mProtein", "dProtein", "Motif", "Domain")
 predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
 print(predDMIs)    
-output_predictedDMIs <- write.csv(predDMIs, "output/predictedDMIs.csv", row.names = FALSE)
+write.csv(predDMIs, "output/predictedDMIs.csv", row.names = FALSE)
 print("predictedDMIs.csv file has been saved in output folder")
 
 #*************************************************************************************
@@ -166,157 +167,161 @@ legend("topright",
 print("Summary Statistics Bar chart has been saved in output folder")
 dev.off()
 
-     
-    #####################################################Enrichment Analysis####################################################
-    #*********************************************************************************************************************************
-    
-    
-    #*************************************************************************************
-    
-    #Step 4: rPPI-DMI Mapping
-    ####################################################
-    #This step generates 1000 random data and then compares each file with the potential DMIs dataset to generate a list of numbers (matches found in each PPI file).
-    #Randomized data will be stored in a new directory created in App folder named as "Randomdata" and can be accessed later if required.
-    #A file named randomNumbers will be generated in "Randomdata" that will be used to generate Histogram later.
-    ####################################################
 
-      #Randomization/Permutations                                                  
-      
-      PPI_data<-read.csv(opt$pFile,header=TRUE,sep=",")
-      PPI_data<-unique(PPI_data)
-      names(PPI_data) <- c("mProtein", "dProtein")
-      PPI_Matrix<-matrix(data = PPI_data$mProtein)
-      PPI_Matrix2<-matrix(data = PPI_data$dProtein)
-      PermutationFunction <- function (data, k) {
-        
-        # creating matrix: amount of variables * amount of permutations
-        permutations <- matrix(1:(k * length(data[1, ])), nrow=k) 
-        row <- NULL
-        
-        # For loop runs for i number of times from 1:length(data[1,])) (*which is number of rows in the dataset*).
-        #sample(data[ , i] randomizes the column
-        #k is the number of entries in the dataset
-        for (i in 1:length(data[1,])) {
-          permutations[ ,i] <- sample(data[ , i], k, replace=FALSE)
-        }
-        permutations
-      }
-      
-      
-      dir.create("Randomdata")
-      
-     # dirName <- paste0("Randomdata_", strsplit(as.character(PPIFile$name), '.csv'))
-    #  dir.create(dirName)
-      #for loop to create 1000 randomized data
-      for (j in 1:1000) {
-        permutation<-PermutationFunction(PPI_Matrix, k = length(PPI_Matrix))
-        permutation2<-PermutationFunction(PPI_Matrix2, k = length(PPI_Matrix2))
-        final_file<- c(paste(permutation,permutation2, sep = ":"))
-        newCol1<-strsplit(as.character(final_file),':',fixed=TRUE)
-        df<-data.frame(final_file,do.call(rbind, newCol1))
-        subset = df[,c(2,3)]
-        names(subset)<-c("mProtein", "dProtein")
-        write.csv(subset, paste0("Randomdata/rPPI",j,".csv"), row.names = FALSE)
-      }
-      print("1000 Randomdata have been created in Randomdata folder")
-      print("Now mapping random PPI data to potential DMIs")
-      #rPPI-DMI Mapping                                                               
-      #################################################################################
-      if(file.exists("Randomdata/randomNumbers.csv")){
-        x<-read.csv("Randomdata/randomNumbers.csv", sep = ",", header = FALSE)
-        print("randomNumbers file already exists. Will load instead")
-      }else {
-      for (i in 1:1000) {
-        rPPI <- read.table(paste0("Randomdata/rPPI", i, ".csv"),
-                           stringsAsFactors=FALSE, sep=",", strip.white=TRUE)
-        names(rPPI)<-c("mProtein", "dProtein")
-        names(Uni_DMI) <- c("mProtein","Motif", "Domain","dProtein")
-        DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
-        Matches <- nrow(DMI_rPPI)
-        print(paste0("File ",i,": ",Matches))
-        
-        output_randomNumbers <- write.table(Matches, "Randomdata/randomNumbers.csv", col.names = FALSE, append = TRUE, row.names = FALSE)
-        
-      }
-        }
-    #*************************************************************************************
+#####################################################Enrichment Analysis####################################################
+#*********************************************************************************************************************************
+
+
+#*************************************************************************************
+
+#Step 4: rPPI-DMI Mapping
+####################################################
+#This step generates 1000 random data and then compares each file with the potential DMIs dataset to generate a list of numbers (matches found in each PPI file).
+#Randomized data will be stored in a new directory created in App folder named as "Randomdata" and can be accessed later if required.
+#A file named randomNumbers will be generated in "Randomdata" that will be used to generate Histogram later.
+####################################################
+
+#Randomization/Permutations                                                  
+
+PPI_data<-read.csv(opt$pFile,header=TRUE,sep=",")
+PPI_data<-unique(PPI_data)
+names(PPI_data) <- c("mProtein", "dProtein")
+PPI_Matrix<-matrix(data = PPI_data$mProtein)
+PPI_Matrix2<-matrix(data = PPI_data$dProtein)
+PermutationFunction <- function (data, k) {
+  
+  # creating matrix: amount of variables * amount of permutations
+  permutations <- matrix(1:(k * length(data[1, ])), nrow=k) 
+  row <- NULL
+  
+  # For loop runs for i number of times from 1:length(data[1,])) (*which is number of rows in the dataset*).
+  #sample(data[ , i] randomizes the column
+  #k is the number of entries in the dataset
+  for (i in 1:length(data[1,])) {
+    permutations[ ,i] <- sample(data[ , i], k, replace=FALSE)
+  }
+  permutations
+}
+
+
+dir.create("Randomdata")
+
+# dirName <- paste0("Randomdata_", strsplit(as.character(PPIFile$name), '.csv'))
+#  dir.create(dirName)
+#for loop to create 1000 randomized data
+for (j in 1:1000) {
+  permutation<-PermutationFunction(PPI_Matrix, k = length(PPI_Matrix))
+  permutation2<-PermutationFunction(PPI_Matrix2, k = length(PPI_Matrix2))
+  final_file<- c(paste(permutation,permutation2, sep = ":"))
+  newCol1<-strsplit(as.character(final_file),':',fixed=TRUE)
+  df<-data.frame(final_file,do.call(rbind, newCol1))
+  subset = df[,c(2,3)]
+  names(subset)<-c("mProtein", "dProtein")
+  write.csv(subset, paste0("Randomdata/rPPI",j,".csv"), row.names = FALSE)
+}
+print("1000 Randomdata have been created in Randomdata folder")
+print("Now mapping random PPI data to potential DMIs")
+#rPPI-DMI Mapping                                                               
+#################################################################################
+if(file.exists("Randomdata/randomNumbers.csv")){
+  x<-read.csv("Randomdata/randomNumbers.csv", sep = ",", header = FALSE)
+  print("randomNumbers file already exists. Will load instead")
+}else {
+  for (i in 1:1000) {
+    rPPI <- read.table(paste0("Randomdata/rPPI", i, ".csv"),
+                       stringsAsFactors=FALSE, sep=",", strip.white=TRUE)
+    names(rPPI)<-c("mProtein", "dProtein")
+    names(Uni_DMI) <- c("mProtein","Motif", "Domain","dProtein")
+    DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
+    Matches <- nrow(DMI_rPPI)
+    print(paste0("File ",i,": ",Matches))
     
-    #Step 5: Histogram
-    ####################################################
-      png(filename="output/Histogram.png", width = 1200, height = 800, units = "px", pointsize = 12)
-      x<-read.csv("Randomdata/randomNumbers.csv", sep = ",", header = FALSE)
-      names(x) <- "values"
-      bins<- seq(min(x), max(x), length.out = 20 + 1)
-      h<- hist(x$values, breaks=bins, col = "red", border = 'black', main="Distribution of Random DMIs", ylab="Frequency of Random DMIs",
-               xlab="Number of Random DMIs", ylim = c(0,500), xlim = c(0, max(x)+100), cex.main=1.5, cex.lab=1.5,cex.axis=1.5)
-      xfit <- seq(min(x$values),max(x$values),length=40)
-      
-      yfit <- dnorm(xfit, mean=mean(x$values),sd=sd(x$values))
-      
-      
-      yfit<- yfit*diff(h$mids[1:2])*length(x$values)
-      
-      
-      lines(xfit,yfit)
-      #axis(side=3, lwd = 0, lwd.ticks = 4, at=nrow(predictedDMIs()), lend=1, labels = FALSE, tcl=5, font=2, col = "black", padj = 0, lty = 3)
-      #shows the observed value
-      mtext(paste("Observed value is: ", nrow(predDMIs)), side = 3, at=nrow(predDMIs), font = 4)
-      mtext(paste0("P-value is: ", length(x[x >= nrow(predDMIs)])/1000), side = 3, at=nrow(predDMIs)+90, font = 4, col = "red")
-      #points arrow on the observed value
-      arrows(nrow(predDMIs), 500, nrow(predDMIs), 0, lwd = 2, col = "black", length = 0.1, lty = 3)
-      dev.off()
-      pvalue <-   length(x[x >= nrow(predDMIs)])/1000
-      meanvalue <- mean(x$values)
-      FDR <- mean(x$values)/nrow(predDMIs)
-      Escore <- nrow(predDMIs)/mean(x$values)
-     sum <- data.frame(pvalue, meanvalue, FDR, Escore)
-     summary <- write.csv(sum, "output/summary.csv", row.names = FALSE)
-     print("summary Table has been created in output directory")
-    #*************************************************************************************
+    output_randomNumbers <- write.table(Matches, "Randomdata/randomNumbers.csv", col.names = FALSE, append = TRUE, row.names = FALSE)
     
-    #Step 6: DMI Network
-    ####################################################
-   
-        #Network
-        first <- predDMIs[,c("mProtein","Motif")]
-        g <- graph.data.frame(first, directed = F)
-        #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-        V(g)$color <- ifelse(V(g)$name %in% predDMI[,1], "#A93226", "#F7DC6F")
-        V(g)$shape <- ifelse(V(g)$name %in% predDMI[,1], "square", "box")
-        #plot(g,  edge.color="orange")
-        #visIgraph(g)
-        ##print(first)
-        #V(g)$color <- "red"
-        #Second
-        second <- predDMIs[,c("Motif","Domain")]
-        g2 <- graph.data.frame(second, directed = F)
-        #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-        V(g2)$color <- ifelse(V(g2)$name %in% predDMI[,1], "#9B59B6", "#D35400")
-        V(g2)$shape <- ifelse(V(g2)$name %in% predDMI[,1], "box", "circle")
-        #plot(g2,  edge.color="orange")
-        #print(second)
-        #visIgraph(g2)
-        #V(g2)$color <- "green"
-        #Third
-        
-        third <- predDMIs[,c("Domain","dProtein")]
-        g3 <- graph.data.frame(third, directed = F)
-        #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-        V(g3)$color <- ifelse(V(g3)$name %in% predDMI[,3], "#9B59B6", "#85C1E9")
-        V(g3)$shape <- ifelse(V(g3)$name %in% predDMI[,3], "vrectangle", "circle")
-        
-        #merge networks
-        g4 = graph.union(g,g2,g3, byname = TRUE)
-        #g4 <- g %u% g2 %u% g3
-        g5 <- simplify(g4, remove.multiple = TRUE, remove.loops = TRUE)
-        #plot.igraph(g5, layout=layout.fruchterman.reingold)
-        V(g5)$color <- ifelse(is.na(V(g5)$color_1),
-                              V(g5)$color_3,V(g5)$color_1)
-        V(g5)$shape <- ifelse(is.na(V(g5)$shape_1),
-                              V(g5)$shape_3,V(g5)$shape_1)
-        E(g5)$color <- "black"
-        E(g)$width <- 9
-        g6 <- visIgraph(g5,layout = "layout_nicely", physics = FALSE, smooth = TRUE, type = "square")
-        
-        visSave(g6, file = "network.html", selfcontained = FALSE)
-        print("A DMI network has been saved as html file")
+  }
+}
+#*************************************************************************************
+
+#Step 5: Histogram
+####################################################
+png(filename="output/Histogram.png", width = 1200, height = 800, units = "px", pointsize = 12)
+x<-read.csv("Randomdata/randomNumbers.csv", sep = ",", header = FALSE)
+names(x) <- "values"
+bins<- seq(min(x), max(x), length.out = 20 + 1)
+h<- hist(x$values, breaks=bins, col = "red", border = 'black', main="Distribution of Random DMIs", ylab="Frequency of Random DMIs",
+         xlab="Number of Random DMIs", ylim = c(0,500), xlim = c(0, max(x)+100), cex.main=1.5, cex.lab=1.5,cex.axis=1.5)
+xfit <- seq(min(x$values),max(x$values),length=40)
+
+yfit <- dnorm(xfit, mean=mean(x$values),sd=sd(x$values))
+
+
+yfit<- yfit*diff(h$mids[1:2])*length(x$values)
+
+
+lines(xfit,yfit)
+ob_fdr <- x[x$values <= nrow(predDMIs), ]
+predictedDMImutlilink = predDMIs
+predDMIs = unique(predictedDMImutlilink[,c("mProtein","dProtein")])
+predDMInum = nrow(predDMIs)
+#axis(side=3, lwd = 0, lwd.ticks = 4, at=nrow(predictedDMIs()), lend=1, labels = FALSE, tcl=5, font=2, col = "black", padj = 0, lty = 3)
+#shows the observed value
+mtext(paste("Observed value is: ", predDMInum), side = 3, at=predDMInum, font = 4)
+mtext(paste0("P-value is: ", length(x[x >= predDMInum])/1000), side = 3, at=predDMInum+90, font = 4, col = "red")
+#points arrow on the observed value
+arrows(predDMInum, 500, predDMInum, 0, lwd = 2, col = "black", length = 0.1, lty = 3)
+dev.off()
+pvalue <-   length(x[x >= predDMInum])/1000
+meanvalue <- mean(x$values)
+FDR <- round(mean(ob_fdr)/predDMInum)
+Escore <- predDMInum/mean(x$values)
+sum <- data.frame(predDMInum, pvalue, meanvalue, FDR, Escore)
+summary <- write.csv(sum, "output/summary.csv", row.names = FALSE)
+print("summary Table has been created in output directory")
+#*************************************************************************************
+
+#Step 6: DMI Network
+####################################################
+
+#Network
+first <- predDMIs[,c("mProtein","Motif")]
+g <- graph.data.frame(first, directed = F)
+#igraph.options(plot.layout=layout.graphopt, vertex.size=10)
+V(g)$color <- ifelse(V(g)$name %in% predDMI[,1], "#A93226", "#F7DC6F")
+V(g)$shape <- ifelse(V(g)$name %in% predDMI[,1], "square", "box")
+#plot(g,  edge.color="orange")
+#visIgraph(g)
+##print(first)
+#V(g)$color <- "red"
+#Second
+second <- predDMIs[,c("Motif","Domain")]
+g2 <- graph.data.frame(second, directed = F)
+#igraph.options(plot.layout=layout.graphopt, vertex.size=10)
+V(g2)$color <- ifelse(V(g2)$name %in% predDMI[,1], "#9B59B6", "#D35400")
+V(g2)$shape <- ifelse(V(g2)$name %in% predDMI[,1], "box", "circle")
+#plot(g2,  edge.color="orange")
+#print(second)
+#visIgraph(g2)
+#V(g2)$color <- "green"
+#Third
+
+third <- predDMIs[,c("Domain","dProtein")]
+g3 <- graph.data.frame(third, directed = F)
+#igraph.options(plot.layout=layout.graphopt, vertex.size=10)
+V(g3)$color <- ifelse(V(g3)$name %in% predDMI[,3], "#9B59B6", "#85C1E9")
+V(g3)$shape <- ifelse(V(g3)$name %in% predDMI[,3], "vrectangle", "circle")
+
+#merge networks
+g4 = graph.union(g,g2,g3, byname = TRUE)
+#g4 <- g %u% g2 %u% g3
+g5 <- simplify(g4, remove.multiple = TRUE, remove.loops = TRUE)
+#plot.igraph(g5, layout=layout.fruchterman.reingold)
+V(g5)$color <- ifelse(is.na(V(g5)$color_1),
+                      V(g5)$color_3,V(g5)$color_1)
+V(g5)$shape <- ifelse(is.na(V(g5)$shape_1),
+                      V(g5)$shape_3,V(g5)$shape_1)
+E(g5)$color <- "black"
+E(g)$width <- 9
+g6 <- visIgraph(g5,layout = "layout_nicely", physics = FALSE, smooth = TRUE, type = "square")
+
+visSave(g6, file = "network.html", selfcontained = FALSE)
+print("A DMI network has been saved as html file")
