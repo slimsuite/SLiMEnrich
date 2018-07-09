@@ -1,8 +1,8 @@
 #*********************************************************************************************************
 #*********************************************************************************************************
 # Short Linear Motif Enrichment Analysis App (SLiMEnrich)
-# Developer: **Sobia Idrees**
-# Version: 1.1.1
+# Developer: **Sobia Idrees & Richard J. Edwards**
+# Version: 1.3.0
 # Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -22,6 +22,7 @@
 #V1.1.0 - Added new tab to show distribution of Domains in the predicted DMI dataset.
 #V1.1.1 - New FDR calculation
 #V1.2.0 - Uses known and predicted ELM information. Predicts DMIs based on domains as well as based on proteins.
+#V1.3.0 - Updated the DMI Strategy Handling. Added separate load functions.
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -35,7 +36,25 @@ for(package_name in package_names)
 { 
   library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
 } 
-
+##############################
+#SETUP DATA
+##############################
+#i# This function is called by the sever (or server.R) in a reactiveValues() call.
+#i# This way, it will be updated whenever the settings that affect it are changed.
+#i# Data itself is stored in a list returned by the adata function, e.g. adata$data
+#i# Individual elements are then accessed as adata$data$ELEMENT
+setupData = function(){
+  emptydb = list()
+  for(rkey in c("PPI","Motifs","Domains","DMI")){
+    emptydb[[rkey]] = data.frame()
+  }
+  emptydb$loads = list()   # Counter to register the Load button being pressed.
+  for(rkey in c("PPI","Motifs","Domains","DMI")){
+    emptydb$loads[[rkey]] = 0
+  }
+  # Return data list
+  return(emptydb)
+}
 ##############################
 #GUI of the App
 ##############################
@@ -87,7 +106,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
       
       
       div(id = "slimrun", textInput("SLiMRun", label = "", value = "")),
-      actionButton("run", "Run", width = "100px"),
+      actionButton("run", "Load data", width = "100px"),
       hr(),
       
       prettyRadioButtons(inputId = "DMIStrategy",
@@ -114,20 +133,27 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
       div (id = "note", "Note: To analyze example dataset, press 'Run' without uploading any files"),
       hr(),
       div(id="advsettings", 
-          div(id = "info", "Domain and Domain containing proteins"),hr(),
+          div(id = "info1", "Domain and Domain containing proteins"),hr(),
           # Default fields are from the Uniprot Pfam domain table
           textInput(inputId="domaindomain",label = "Domain file domain column", value = "pfam"),
           textInput(inputId="domaindprotein",label = "Domain file dProtein column", value = "accnum"),
           
-          div(id = "info", "Motif and interacting Domains"),hr(),
+          div(id = "info2", "Motif and interacting Domains"),hr(),
           # Default fields are from the ELM interactions table
           textInput(inputId="dmimotif",label = "DMI file Motif column", value = "Elm"),
           textInput(inputId="dmidomain",label = "DMI file Domain column", value = "interactorDomain"),
           
-          div(id = "info", "Motif containing proteins and their interacting ELMs"),hr(),
+          div(id = "info3", "Motif containing proteins and their interacting ELMs"),hr(),
           # Default fields are from the ELM instances table, reformatted to match SLiMProb
           textInput(inputId="motifmprotein",label = "Motif file mProtein column", value = "AccNum"),
-          textInput(inputId="motifmotif",label = "Motif file Motif column", value = "Motif")
+          textInput(inputId="motifmotif",label = "Motif file Motif column", value = "Motif"),
+
+          tags$div(class="header", checked=NA,
+                   tags$hr(),
+                   tags$p("Randomisation settings:"),
+                   numericInput("shufflenum", label = "Number of randomisations",1000,step=100,min=100)
+          )
+
       ),
       div (id = "update", "Last updated: 29-Jun-2018")
     ),
@@ -236,6 +262,10 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
 ##############################
 options(shiny.maxRequestSize=10000*1024^2)
 server <- shinyServer(function(input, output, session){
+  # Setup the data list that will store loaded data
+  adata <- reactiveValues(
+    data = setupData()
+  )
   # This function computes a new data set. It can optionally take a function,
   # updateProgress, which will be called as each row of data is added.
   compute_data <- function(updateProgress = NULL) {
@@ -286,21 +316,28 @@ server <- shinyServer(function(input, output, session){
     x
     
   }
+  # Generate notifications of loaded data
   observeEvent(input$run, {
     MotifFile<-input$Motif
     PPIFile<-input$PPI
+    DomainFile<-input$domain
+    MotifDomainFile<-input$MotifDomain
     if(is.null(PPIFile)){
-      showNotification("PPI file is missing. Loading Example dataset", type = "error", duration = 5)
+      showNotification("PPI file not provided: loading example Adenovirus PHISTO dataset", type = "warning", duration = 5)
     }
     
     SliMJobId <- input$SLiMRun
     if(is.null(MotifFile) && SliMJobId == "" ){
-      showNotification("SLiM file is missing. Loading Example dataset", type = "error", duration = 5)
-      
-      
+      showNotification("SLiM file not provided: loading ELM instances", type = "warning", duration = 5)
+    }
+    if(is.null(MotifDomainFile)){
+      showNotification("DMI file not provided: loading ELM interaction data", type = "warning", duration = 5)
+    }
+    if(is.null(DomainFile)){
+      showNotification("Domain file not provided: loading reviewed human Uniprot Pfam data", type = "warning", duration = 5)
     }
     if(is.null(PPIFile)){
-      showNotification("Loaded Example dataset", type = "warning", duration = NULL)    }
+      showNotification("Loaded example Adenovirus PHISTO dataset", type = "warning", duration = NULL)    }
   })
 
   # observeEvent(input$DMIStrategy) to update default DMI fields
@@ -350,147 +387,44 @@ server <- shinyServer(function(input, output, session){
   # "Link Motif classes to binding domains (ELMc-Domain)" = "elmcdom"),
   
   inputDataPPI <-eventReactive(input$run, {
-    return(loadPPIData(input))
+    #return(loadPPIData(input))
+    if(adata$data$loads$PPI < input$run){
+      adata$data$loads$PPI = input$run
+      adata$data$PPI = loadPPIData(input)
+    }
+    return(adata$data$PPI)
   })
   
   ### Making the "Motif" table (mProtein-Motif)
   inputDataMotif <-eventReactive(input$run, {
-    return(loadDataMotif(input))
-    # #File upload check
-    # MotifFile<-input$Motif
-    # if(input$SLiMrunid){
-    #   Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
-    #   motfield = "Motif"
-    #   protfield = "AccNum"
-    # }
-    # else{
-    #   # Check whether file loaded
-    #   if(is.null(MotifFile)){
-    #     fname <- "data/known.occ.csv"
-    #   }else{
-    #     fname <- MotifFile$datapath
-    #   }
-    #   # Check whether csv or tdt
-    #   if(substr(fname,nchar(fname)-2,nchar(fname)) %in% c("csv","CSV")){
-    #     Motif<-read.csv(fname,header=TRUE,sep=",")
-    #   }else{
-    #     Motif<-read.csv(fname,header=TRUE,sep="\t")
-    #   }
-    #   # Select mProtein and Motif IDs
-    #   # This will have input$motifmprotein and input$motifmotif text boxes 
-    #   if(input$motifmprotein %in% colnames(Motif)){
-    #     protfield = input$motifmprotein
-    #   }else{
-    #     protfield = "mProtein"
-    #   }
-    #   if(input$motifmotif %in% colnames(Motif)){
-    #     motfield = input$motifmotif
-    #   }else{
-    #     motfield = "Motif"
-    #   }
-    # }
-    # # NOTE: For direction dProtein links, this table will be replaced by duplicated DMI table fields
-    # # Pull out required columns dependent on strategy
-    # if(input$DMIStrategy %in% c("elmiprot")){
-    #   # Direct protein links will use protein IDs from DMI file as domain IDs
-    #   Motif <- inputDataMotifDomain()
-    #   Motif <- Motif[,c("Motif","Motif")]
-    # }else{
-    #   Motif <- Motif[,c(protfield,motfield)]
-    # }
-    # colnames(Motif) <- c("mProtein","Motif")
-    # Motif
+    #return(loadDataMotif(input))
+    if(adata$data$loads$Motifs < input$run){
+      adata$data$loads$Motifs = input$run
+      adata$data$Motifs = loadDataMotif(input)
+    }
+    return(adata$data$Motifs)
   })
   
 
   ### Making the "Domain" table (Domain-dProtein)
   inputDatadomain <-eventReactive(input$run, {
-    return(loadDatadomain(input))
-  
-    DomainFile<-input$domain
-    # Check whether file loaded
-    if(is.null(DomainFile)){
-      fname <- "data/domain.csv"
-    }else{
-      fname <- DomainFile$datapath
+    #return(loadDatadomain(input))
+    if(adata$data$loads$Domains < input$run){
+      adata$data$loads$Domains = input$run
+      adata$data$Domains = loadDatadomain(input)
     }
-    # Check whether csv or tdt
-    if(substr(fname,nchar(fname)-2,nchar(fname)) %in% c("csv","CSV")){
-      dProtein<-read.csv(fname,header=TRUE,sep=",")
-    }else{
-      dProtein<-read.csv(fname,header=TRUE,sep="\t")
-    }  
-    # Select Domain and dProtein IDs
-    # This will have input$domaindomain and input$domaindprotein text boxes 
-    if(input$domaindomain %in% colnames(dProtein)){
-      domfield = input$domaindomain
-    }else{
-      domfield = "Domain"
-    }
-    if(input$domaindprotein %in% colnames(dProtein)){
-      protfield = input$domaindprotein
-    }else{
-      protfield = "dProtein"
-    }
-
-    # NOTE: For direction dProtein links, this table will be replaced by duplicated DMI table fields
-    # Pull out required columns dependent on strategy
-    if(input$DMIStrategy %in% c("elmiprot","elmcprot")){
-      # Direct protein links will use protein IDs from DMI file as domain IDs
-      dProtein <- inputDataMotifDomain()
-      dProtein <- dProtein[,c("Domain","Domain")]
-    }else{
-      dProtein <- dProtein[,c(domfield,protfield)]
-    }
-    colnames(dProtein) <- c("Domain","dProtein")
-    dProtein
+    return(adata$data$Domains)
   })
   
     
   ### Making the "DMI" table (Motif-Domain)
   inputDataMotifDomain <-eventReactive(input$run, {
-    return(loadDataMotifDomain(input))
-    MotifDomainFile<-input$MotifDomain
-
-    # Choose which file to use for DMI data
-    # Default strategy is elmc-protein
-    fname <- "data/elm_interactions.tsv"
-    # Elm	Domain	interactorElm	interactorDomain	StartElm	StopElm	StartDomain	StopDomain	AffinityMin	AffinityMax	PMID	taxonomyElm	taxonomyDomain	
-    # CLV_Separin_Fungi	PF03568	Q12158	Q03018	175	181	1171	1571	None	None	10403247,14585836	"559292"(Saccharomyces cerevisiae S288c)	"559292"(Saccharomyces cerevisiae S288c)
-    if(input$DMIStrategy == c("elmcdom")){
-      fname <- "data/motif-domain.tsv"
+    if(adata$data$loads$DMI < input$run){
+      adata$data$loads$DMI = input$run
+      adata$data$FullDMI = loadDataMotifDomain(input)
+      adata$data$DMI = parseDataMotifDomain(input,adata$data$FullDMI)
     }
-    # "ELMidentifier"	"InteractionDomainId"	"Interaction Domain Description"	"Interaction Domain Name"
-    #  "CLV_NRD_NRD_1"	"PF00675"	"Peptidase_M16"	"Insulinase (Peptidase family M16)"  
-    # Check whether file loaded - over-rides default
-    if(! is.null(MotifDomainFile)){
-      fname <- MotifDomainFile$datapath
-    }
-    writeLines(fname)
-
-    # Check whether csv or tdt
-    if(substr(fname,nchar(fname)-2,nchar(fname)) %in% c("csv","CSV")){
-      Domain<-read.csv(fname,header=TRUE,sep=",")
-    }else{
-      Domain<-read.csv(fname,header=TRUE,sep="\t")
-    }  
-    writeLines(paste(colnames(Domain)))
-    
-    # Select Motif and Domain IDs
-    # This will have input$dmimotif and input$dmidomain text boxes 
-    if(input$dmimotif %in% colnames(Domain)){
-      motfield = input$dmimotif
-    }else{
-      motfield = "Motif"
-    }
-    if(input$dmidomain %in% colnames(Domain)){
-      domfield = input$dmidomain
-    }else{
-      domfield = "Domain"
-    }
-    Domain <- Domain[,c(motfield,domfield)]
-    colnames(Domain) <- c("Motif","Domain")
-    Domain
+    return(adata$data$DMI)
   })
   
   #########################################################
@@ -522,13 +456,15 @@ server <- shinyServer(function(input, output, session){
   caption = tags$h4(tags$strong("Domain File"))
   )
   output$udata4<-renderDataTable({
-    MotifDomainFile<-input$MotifDomain
-    if(is.null(MotifDomainFile)){
-      inputDataMotifDomain()
-    }
-    else{
-      inputDataMotifDomain()
-    }
+    inputDataMotifDomain()
+    adata$data$FullDMI
+    # MotifDomainFile<-input$MotifDomain
+    # if(is.null(MotifDomainFile)){
+    #   inputDataMotifDomain()
+    # }
+    # else{
+    #   inputDataMotifDomain()
+    # }
     
   },
   caption = tags$h4(tags$strong("Motif-Domain File"))
@@ -544,9 +480,16 @@ server <- shinyServer(function(input, output, session){
     # "Link Motif classes directly to dProteins (ELMc-Protein)" = "elmcprot",
     # "Link Motif classes to binding domains (ELMc-Domain)" = "elmcdom"),
 
-    Domain <- loadDataMotifDomain(input)
-    dProtein <- loadDatadomain(input)
-    Motif <- loadDataMotif(input)
+    Domain <- inputDataMotifDomain()
+    #Domain <- adata$data$DMI   # loadDataMotifDomain(input)
+    print(colnames(Domain))
+    print(dim(Domain))
+    dProtein <- inputDatadomain()
+    print(colnames(dProtein))
+    print(dim(dProtein))
+    Motif <- inputDataMotif()
+    print(colnames(Motif))
+    print(dim(Motif))
     #PPI2 <- loadPPIData(input)
     
     #knowninter <- read.csv("data/elm_interactions.tsv", header = TRUE, sep = "\t")[1:4]
@@ -610,12 +553,12 @@ server <- shinyServer(function(input, output, session){
   
   #Step 2: Predicted DMIs
   ####################################################
-  predictedDMIs <-eventReactive(input$run, {
-    predDMIs <- generatePredictedDMIs(input)
+  predictedDMIs <-eventReactive(adata$data, {
+    predDMIs <- generatePredictedDMIs(input,adata$data)
     return(predDMIs)
     Domain <- loadDataMotifDomain(input)
     dProtein <- loadDatadomain(input)
-    Motif <- loadDataMotif(input)
+    Motif <- inputDataMotif()
     PPI2 <- loadPPIData(input)
     
     Motif_NR<-unique(Motif)
@@ -702,7 +645,7 @@ server <- shinyServer(function(input, output, session){
     # predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
     # print(predDMIs)
     
-    predDMI <- generatePredictedDMIs(input)
+    predDMI <- generatePredictedDMIs(input,adata$data)
     
     colors=c("cadetblue1", "deepskyblue2", "blue", "darkblue")
     #Select unique Motif
@@ -773,60 +716,6 @@ server <- shinyServer(function(input, output, session){
   #####################################################
   #*************************************************************************************
   disELMs <- eventReactive(input$run, {
-    #File upload check
-    # MotifFile<-input$Motif
-    # if(input$SLiMrunid){
-    #   Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
-    # }
-    # else{
-    #   if(is.null(MotifFile)){
-    #     if(input$withPro =="pmi"){
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     } else{
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     }
-    #   }
-    #   
-    #   else{
-    #     Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    #   }
-    # }
-    # PPIFile<-input$PPI
-    # if(is.null(PPIFile)){
-    #   PPI2<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
-    # }
-    # 
-    # else{
-    #   PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
-    # }
-    # #File upload check
-    # DomainFile<-input$domain
-    # if(is.null(DomainFile)){
-    #   dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # 
-    # else{
-    #   dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # MotifDomainFile<-input$MotifDomain
-    # if(is.null(MotifDomainFile)){
-    #   Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    #   
-    # }
-    # else{
-    #   Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    # }
-    # knowninter <- read.csv("data/elm_interactions.tsv", header = TRUE, sep = "\t")[1:4]
-    # head(knowninter)
-    # names(knowninter) <- c("Motif", "Domain", "mProtein", "dProtein")
     #Read uploaded files
     GOterms <- read.csv("data/elm_goterms.tsv",header=TRUE,sep="\t")
     names(GOterms) <- c("ELM", "GO Term", "Biological Function")
@@ -855,7 +744,8 @@ server <- shinyServer(function(input, output, session){
     # names(PPI2) <- c("mProtein", "dProtein")
     # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
     
-    predDMIs <- generatePredictedDMIs(input)
+    predDMIs <- generatePredictedDMIs(input,adata$data)
+    print(head(predDMIs))
     predDMI = predDMIs
     
     Uni_predDMIs <- unique(predDMI)
@@ -881,9 +771,14 @@ server <- shinyServer(function(input, output, session){
     df_pred2 <- data.frame(ELMs_names,Frequency)
     pvalueelm <- round(df_pred2$Frequency/nrow(df_pred),2)
     pvaluecol <- cbind(df_pred2,pvalueelm)
-    names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
-    GeneOntology <- merge(pvaluecol,GOterms, by="ELM")
-    GeneOntology
+    names(pvaluecol) <- c("Motif", "Frequency", "Pvalue")
+    if(input$DMIStrategy == c("elmcdom","elmcprot")){
+      #names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
+      GeneOntology <- merge(pvaluecol,GOterms, by="ELM")
+      return(GeneOntology)
+    }else{
+      return(pvaluecol)
+    }
   })
   
   output$diselmsdata <-DT::renderDataTable({
@@ -920,86 +815,7 @@ server <- shinyServer(function(input, output, session){
     }
   })
   displotfunc <- function(){
-    #File upload check
-    # MotifFile<-input$Motif
-    # if(input$SLiMrunid){
-    #   Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
-    # }
-    # else{
-    #   if(is.null(MotifFile)){
-    #     if(input$withPro =="pmi"){
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     } else{
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     }
-    #   }
-    #   
-    #   else{
-    #     Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    #   }
-    # }
-    # PPIFile<-input$PPI
-    # if(is.null(PPIFile)){
-    #   PPI2<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
-    # }
-    # 
-    # else{
-    #   PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
-    # }
-    # #File upload check
-    # DomainFile<-input$domain
-    # if(is.null(DomainFile)){
-    #   dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # 
-    # else{
-    #   dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # MotifDomainFile<-input$MotifDomain
-    # if(is.null(MotifDomainFile)){
-    #   Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    #   
-    # }
-    # else{
-    #   Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    # }
-    # knowninter <- read.csv("data/elm_interactions.tsv", header = TRUE, sep = "\t")[1:4]
-    # head(knowninter)
-    # names(knowninter) <- c("Motif", "Domain", "mProtein", "dProtein")
-    # Motif <- lowername(Motif)
-    # Motif <- Motif[, c("accnum","motif")]
-    # names(Motif) <- c("UniprotID","Motif")
-    # Motif_NR<-unique(Motif)
-    # #Rename the columns in two files
-    # names( Motif_NR) <- c("mProtein", "Motif")
-    # names(Domain) <- c("Motif", "Domain")
-    # 
-    # #Join/Merge two files based on Motif
-    # Join <- merge( Motif_NR, Domain, by="Motif")
-    # #print(Join)
-    # names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
-    # #Load mProtein_Motif_Domain file (result file from the previous code)
-    # names(dProtein) <- c("Domains", "dProteins")
-    # #joined both files based on Domains
-    # DMI <- merge(Join, dProtein,by="Domains")
-    # #Filtered unique DMIs
-    # Uni_DMI <- unique(DMI)
-    # #Named the header of output file
-    # names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
-    # #PPI-DMI Mapping
-    # ########################################################################
-    # names(PPI2) <- c("mProtein", "dProtein")
-    # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-    # 
-    predDMIs <- generatePredictedDMIs(input)
+    predDMIs <- generatePredictedDMIs(input,adata$data)
     
     Uni_predDMIs <- unique(predDMI)
     names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
@@ -1151,7 +967,7 @@ server <- shinyServer(function(input, output, session){
     # names(PPI2) <- c("mProtein", "dProtein")
     # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
     
-    predDMIs <- generatePredictedDMIs(input)
+    predDMIs <- generatePredictedDMIs(input,adata$data)
     predDMI = predDMIs
     Uni_predDMIs <- unique(predDMI)
     names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
@@ -1294,7 +1110,7 @@ server <- shinyServer(function(input, output, session){
     # names(PPI2) <- c("mProtein", "dProtein")
     # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
     # 
-    predDMIs <- generatePredictedDMIs(input)
+    predDMIs <- generatePredictedDMIs(input,adata$data)
     
     Uni_predDMIs <- unique(predDMI)
     names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
@@ -1378,10 +1194,10 @@ server <- shinyServer(function(input, output, session){
   #A file named randomNumbers will be generated in "RandomFiles" that will be used to generate Histogram later.
   ####################################################
   rPPIDMI <-reactive({
-    Domain <- loadDataMotifDomain(input)
-    dProtein <- loadDatadomain(input)
-    Motif <- loadDataMotif(input)
-    PPI <- loadPPIData(input)
+    Domain <- inputDataMotifDomain()
+    dProtein <- inputDatadomain()
+    Motif <- inputDataMotif()
+    PPI <- inputDataPPI()
 
     Motif_NR<-unique(Motif)
 
@@ -1408,7 +1224,7 @@ server <- shinyServer(function(input, output, session){
     predDMIs <- unique(predDMI[, c("mProtein","dProtein")])
     
 
-    PPI <- loadPPIData(input)
+    PPI <- inputDataPPI()
     PPI_data <- unique(PPI)
     names(PPI_data) <- c("mProtein", "dProtein")
     PPI_Matrix<-matrix(data = PPI_data$mProtein)
@@ -1429,7 +1245,7 @@ server <- shinyServer(function(input, output, session){
     }
     showNotification("Performing the randomizations", type = "message", duration = 5)
     data <- list()
-    for (j in 1:1000) {
+    for (j in 1:input$shufflenum) {
       permutation<-PermutationFunction(PPI_Matrix, k = length(PPI_Matrix))
       permutation2<-PermutationFunction(PPI_Matrix2, k = length(PPI_Matrix2))
       final_file<- c(paste(permutation,permutation2, sep = ":"))
@@ -1446,10 +1262,11 @@ server <- shinyServer(function(input, output, session){
     showNotification("1000 random PPI files have been created", type = "message", duration = 5)
     showNotification("Now predicing DMIs from the random PPI data", type = "message", closeButton = TRUE,duration = 15)
     m <- data.frame()
-    for (i in 1:1000) {
+    for (i in 1:input$shufflenum) {
       rPPI <- data[[i]]
       names(rPPI)<-c("mProtein", "dProtein")
       DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
+      DMI_rPPI <- unique(DMI_rPPI[,c("mProtein", "dProtein")])
       Matches <- nrow(DMI_rPPI)
       print(Matches)
       dmatch <- data.frame(Matches)
@@ -1498,10 +1315,10 @@ server <- shinyServer(function(input, output, session){
   #Function to generate Histogram
   plotInput <- function(){
     #File upload check
-    Domain <- loadDataMotifDomain(input)
-    dProtein <- loadDatadomain(input)
-    Motif <- loadDataMotif(input)
-    PPI <- loadPPIData(input)
+    Domain <- inputDataMotifDomain()
+    dProtein <- inputDatadomain()
+    Motif <- inputDataMotif()
+    PPI <- inputDataPPI()
     
     #dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
     x <- rPPIDMI()
@@ -1528,10 +1345,10 @@ server <- shinyServer(function(input, output, session){
     #axis(side=3, lwd = 0, lwd.ticks = 4, at=nrow(predDMIs), lend=1, labels = FALSE, tcl=5, font=2, col = "black", padj = 0, lty = 3)
     #shows the observed value
     mtext(paste("Observed value is: ", predDMInum), side = 3, at=predDMInum, font = 4)
-    pvalue = length(x[x >= predDMInum])/1000
+    pvalue = length(x[x >= predDMInum])/input$shufflenum
     if(pvalue == 0){ 
-      mtext(paste0("P-value is: < ", 1/1000), side = 3, at=predDMInum+90, font = 4, col = "red")
-      pvalue <-  paste0("<b>P-value is: </b> < ", 1/1000)
+      mtext(paste0("P-value is: < ", 1/input$shufflenum), side = 3, at=predDMInum+90, font = 4, col = "red")
+      pvalue <-  paste0("<b>P-value is: </b> < ", 1/input$shufflenum)
     }else{
       mtext(paste0("P-value is: ", pvalue), side = 3, at=predDMInum+90, font = 4, col = "red")
       pvalue <-  paste0("<b>P-value is: </b>", pvalue)
@@ -1802,7 +1619,7 @@ server <- shinyServer(function(input, output, session){
       # names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
       # predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
 
-      predDMIs <- generatePredictedDMIs(input)
+      predDMIs <- generatePredictedDMIs(input,adata$data)
       predDMI = predDMIs
       
       
@@ -1899,9 +1716,9 @@ server <- shinyServer(function(input, output, session){
   )
 })
 
-
+####################################################################
 ### Functions for loading data
-
+####################################################################
 # Load PPI data (mProtein, dProtein)
 #PPI2 <- loadPPIData(input)
 loadPPIData <- function(input){
@@ -1962,6 +1779,7 @@ loadDataMotif <- function(input){
   if(input$DMIStrategy %in% c("elmiprot")){
     # Direct protein links will use protein IDs from DMI file as domain IDs
     Motif <- loadDataMotifDomain(input)
+    Motif <- parseDataMotifDomain(input,Motif)
     Motif <- Motif[,c("Motif","Motif")]
   }else{
     Motif <- Motif[,c(protfield,motfield)]
@@ -2006,6 +1824,7 @@ loadDatadomain <- function(input){
   if(input$DMIStrategy %in% c("elmiprot","elmcprot")){
     # Direct protein links will use protein IDs from DMI file as domain IDs
     dProtein <- loadDataMotifDomain(input)
+    dProtein <- parseDataMotifDomain(input,dProtein)
     dProtein <- dProtein[,c("Domain","Domain")]
   }else{
     dProtein <- dProtein[,c(domfield,protfield)]
@@ -2018,6 +1837,7 @@ loadDatadomain <- function(input){
 ### Making the "DMI" table (Motif-Domain)
 #Domain <- loadDataMotifDomain(input)
 loadDataMotifDomain <- function(input){
+  # Check whether data already loaded
   MotifDomainFile<-input$MotifDomain
   
   # Choose which file to use for DMI data
@@ -2025,7 +1845,7 @@ loadDataMotifDomain <- function(input){
   fname <- "data/elm_interactions.tsv"
   # Elm	Domain	interactorElm	interactorDomain	StartElm	StopElm	StartDomain	StopDomain	AffinityMin	AffinityMax	PMID	taxonomyElm	taxonomyDomain	
   # CLV_Separin_Fungi	PF03568	Q12158	Q03018	175	181	1171	1571	None	None	10403247,14585836	"559292"(Saccharomyces cerevisiae S288c)	"559292"(Saccharomyces cerevisiae S288c)
-  if(input$DMIStrategy == c("elmcdom")){
+  if(input$DMIStrategy %in% c("elmcdom")){
     fname <- "data/motif-domain.tsv"
   }
   # "ELMidentifier"	"InteractionDomainId"	"Interaction Domain Description"	"Interaction Domain Name"
@@ -2043,7 +1863,10 @@ loadDataMotifDomain <- function(input){
     Domain<-read.csv(fname,header=TRUE,sep="\t")
   }  
   #writeLines(paste(colnames(Domain)))
+  return(Domain)
+}
   
+parseDataMotifDomain <- function(input,Domain){
   # Select Motif and Domain IDs
   # This will have input$dmimotif and input$dmidomain text boxes 
   if(input$dmimotif %in% colnames(Domain)){
@@ -2063,12 +1886,12 @@ loadDataMotifDomain <- function(input){
 
 #### Generate predicted DMis
 # predDMIs <- generatePredictedDMIs(input)
-generatePredictedDMIs <- function(input){
+generatePredictedDMIs <- function(input,appdata){
   
-  Domain <- loadDataMotifDomain(input)
-  dProtein <- loadDatadomain(input)
-  Motif <- loadDataMotif(input)
-  PPI2 <- loadPPIData(input)
+  Domain <- appdata$DMI #loadDataMotifDomain(input)
+  dProtein <- appdata$Domains # loadDatadomain(input)
+  Motif <- appdata$Motifs  #inputDataMotif()
+  PPI2 <- appdata$PPI  # loadPPIData(input)
   
   Motif_NR<-unique(Motif)
   
