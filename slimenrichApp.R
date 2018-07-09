@@ -1,9 +1,14 @@
 #*********************************************************************************************************
 #*********************************************************************************************************
-# Short Linear Motif Enrichment Analysis App (SLiMEnrich)
-# Developer: **Sobia Idrees & Richard J. Edwards**
-# Version: 1.3.0
-# Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
+################# ::: APP INFO ::: ######################
+info = list(
+  apptitle = "SLiMEnrich",
+  version = "1.3.0",
+  lastedit = "10 Jul 2018",
+  author = "Sobia Idrees & Richard J. Edwards",
+  contact = "richard.edwards@unsw.edu.au",
+  description = "SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyses enrichment through permutation test."
+)
 #*********************************************************************************************************
 #*********************************************************************************************************
 ##############################
@@ -43,7 +48,7 @@ for(package_name in package_names)
 #i# This way, it will be updated whenever the settings that affect it are changed.
 #i# Data itself is stored in a list returned by the adata function, e.g. adata$data
 #i# Individual elements are then accessed as adata$data$ELEMENT
-devmode = TRUE  # This affects some of the printing to screen
+devmode = FALSE  # This affects some of the printing to screen
 setupData = function(){
   emptydb = list()
   for(rkey in c("PPI","Motifs","Domains","DMI")){
@@ -103,7 +108,14 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
   # Sidebar
   sidebarLayout(
     sidebarPanel(
-      fileInput("PPI","Select Interaction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+      tags$div(class="note", checked=NA,
+               tags$h4(paste(info$apptitle,"Version",info$version)),
+               tags$b("Note: To analyse example dataset, press 'Load Data' without uploading any files."),
+               tags$hr()
+               #tags$h4("PPI File:")
+      ),
+
+      fileInput("PPI","Select Interaction file:",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
       # PPI fields
       tags$div(class="ppifields", checked=NA,
                textInput(inputId="ppimprotein",label = "Motif-containing protein column", value = "mProtein"),
@@ -136,8 +148,8 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                          icon = icon("check"),
                          animation = "pulse")
       ),
-      div (id = "note", "Note: To analyse example dataset, press 'Load Data' without uploading any files"),
-      hr(),
+      #div (id = "note", "Note: To analyse example dataset, press 'Load Data' without uploading any files"),
+      #hr(),
       div(id="advsettings", 
           # # PPI fields
           # tags$div(class="ppifields", checked=NA,
@@ -183,7 +195,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
           )
 
       ),
-      div (id = "update", "Last updated: 09-Jul-2018")
+      div (id = "update", paste0("Last updated:", info$lastedit))
     ),
     
     # MainPanel
@@ -1002,7 +1014,7 @@ server <- shinyServer(function(input, output, session){
         DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
         DMI_rPPI <- unique(DMI_rPPI[,c("mProtein", "dProtein")])
         Matches <- nrow(DMI_rPPI)
-        print(Matches)
+        if(devmode){ print(Matches) }
         dmatch <- data.frame(Matches)
         m=rbind(m,dmatch)
         row.names(m) <- NULL
@@ -1020,14 +1032,12 @@ server <- shinyServer(function(input, output, session){
     
     if(input$run){
       style <- isolate(input$style)
-      showNotification("Creating plot - this may take a while! Nothing will respond while it's being calculated (e.g. network tab)", type = "warning", duration = 10)    
+      showNotification("Creating plot - this may take a while! Nothing will respond while it's being calculated (e.g. network tab)", type = "warning", duration = NULL, id="plotwarning")    
       #withProgress(message = 'Creating Plot', detail = "This may take a while!!. Nothing will respond while it's being calculated (e.g. network tab)", value = 0, {
-        rPPIDMI()
-      #  incProgress(0.5)
-        plotInput()
-      #  incProgress(0.5,detail="Complete")
-      #})
-    }
+      rPPIDMI()
+      plotInput()
+      removeNotification("plotwarning")
+      }
   })
   #Function to generate Histogram
   plotInput <- function(){
@@ -1070,10 +1080,11 @@ server <- shinyServer(function(input, output, session){
     mtext(paste("Observed value: ", predDMInum), side = 3, at=predDMInum, font = 4)
     pvalue = length(x[x >= predDMInum])/input$shufflenum
     if(pvalue == 0){ 
-      mtext(paste0("P-value is: < ", 1/input$shufflenum), side = 3, at=predDMInum+90, font = 4, col = "red")
+      mtext(paste0("P-value is: < ", 1/input$shufflenum), side = 3, at=predDMInum/2, font = 4, col = "red")
       pvalue <-  paste0("<b>P-value: </b> < ", 1/input$shufflenum)
     }else{
-      mtext(paste0("P-value is: ", pvalue), side = 3, at=predDMInum+90, font = 4, col = "red")
+      #mtext(paste0("P-value is: ", pvalue), side = 3, at=predDMInum+90, font = 4, col = "red")
+      mtext(paste0("P-value is: ", pvalue), side = 3, at=xlimmax, font = 4, col = "red")
       pvalue <-  paste0("<b>P-value: </b>", pvalue)
     }
     #mtext(paste0("Mean is: ", mean(x$values)), side = 3, at=mean(x$values), font = 4, col="red")
