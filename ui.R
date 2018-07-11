@@ -1,41 +1,20 @@
 #*********************************************************************************************************
 #*********************************************************************************************************
-# Short Linear Motif Enrichment Analysis App (SLiMEnrich)
-# Developer: **Sobia Idrees**
-# Version: 1.1.1
-# Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
+# Please see main.R for App version, history and license information.
 #*********************************************************************************************************
 #*********************************************************************************************************
-##############################
-#Version History
-##############################
-#V1.0.1 - Added code for checking whether packages installed. (Removes manual step)
-#V1.0.2 - Better naming conventions in code
-#V1.0.3 - Added titles/captions to data tables (uploaded files).
-#       - Improved summary bar chart (used plotly), 
-#       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
-#V1.0.4 - Checks whether any of the random files is missing and creates if not present.
-#V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
-#V1.0.7 - File headers to lowercase for consistency
-#V1.0.8 - Auto loading example dataset
-#V1.0.9 - Reads SLiMProb REST server output through Job Id.
-#V1.1.0 - Added new tab to show distribution of Domains in the predicted DMI dataset.
-#V1.1.1 - New FDR calculation
-#V1.2.0 - Uses known and predicted ELM information. Predicts DMIs based on domains as well as based on proteins.
-##############################
-#SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-# SLiMEnrich program is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-# You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 ##############################
 #Required Libraries
+#?# Might not be needed as loaded by server.R
 ##############################
-package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
-for(package_name in package_names) 
-{ 
-  library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
-} 
-
+#package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
+#for(package_name in package_names) 
+#{ 
+#  library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
+#} 
+#*********************************************************************************************************
+#*********************************************************************************************************
 ##############################
 #GUI of the App
 ##############################
@@ -73,7 +52,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                   }
                   #info{
                   background-color: white;
-color: black;
+                  color: black;
                   font-weight: bold;
                   font-size: 10;
                   }
@@ -83,35 +62,96 @@ color: black;
   # Sidebar
   sidebarLayout(
     sidebarPanel(
-      fileInput("PPI","Select Interaction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+      tags$div(class="note", checked=NA,
+               tags$h4(paste(info$apptitle,"Version",info$version)),
+               tags$b("Note: To analyse example dataset, press 'Load Data' without uploading any files."),
+               tags$hr()
+               #tags$h4("PPI File:")
+      ),
+      
+      fileInput("PPI","Select Interaction file:",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+      # PPI fields
+      tags$div(class="ppifields", checked=NA,
+               textInput(inputId="ppimprotein",label = "Motif-containing protein column", value = "mProtein"),
+               textInput(inputId="ppidprotein",label = "Domain-containing protein column", value = "dProtein")
+      ),
       
       
-      div(id = "slimrun", textInput("SLiMRun", label = "", value = "")),
-      actionButton("run", "Run", width = "100px"),
+      actionButton("run", "Load data", width = "100px"),
       hr(),
       
-      prettyRadioButtons(inputId = "withPro",
-                         label = "Interaction Type", icon = icon("check"),
-                         choices = c("Domain Motif Interactions" = "dmi", "Protein Motif Interactions" = "pmi"),
+      prettyRadioButtons(inputId = "DMIStrategy",
+                         label = "DMI Strategy", icon = icon("check"),
+                         choices = c("Link mProteins directly to dProteins (ELMi-Protein)" = "elmiprot", 
+                                     "Link Motif classes directly to dProteins (ELMc-Protein)" = "elmcprot",
+                                     "Link Motif classes to binding domains (ELMc-Domain)" = "elmcdom"),
+                         selected = "elmcprot",
                          animation = "pulse", status = "warning"),
-      hr(),
-      div(id="fileuploads",prettyCheckbox("uploadmotifs",label = tags$b("Upload Files"), value = FALSE, status = "info",
+      #hr(),
+      div(id="fileuploads",prettyCheckbox("uploadmotifs",label = tags$b("Upload Additional Files"), value = FALSE, status = "info",
                                           icon = icon("check"),
                                           animation = "pulse")),
-      hr(),
+      #hr(),
       
-      div(id="uploadmotif", fileInput("domain","Select Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-          div(id = "info", "Domain and Domain containing proteins"),hr(),
+      div(id="uploadmotif", 
           fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-          div(id = "info", "Motif and interacting Domains"),hr(),
-          fileInput("Motif","Select SLiM file (e.g. SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-          div(id = "info", "Motif containing proteins and their interacting ELMs"),hr(),
-          prettyCheckbox("SLiMrunid", label = "Provide SLiMProb Job ID", status = "default",
+          conditionalPanel(
+            condition = "input.SLiMrunid == false",
+            fileInput("Motif","Select Motif file (mProtein-Motif, e.g. ELM or SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv'))
+          ),
+          div(id = "slimrun", textInput("SLiMRun", label = "SLiMProb JobID:", value = "")),
+          prettyCheckbox("SLiMrunid", label = "Provide SLiMProb Job ID (Replaces Motif File)", status = "default",
                          icon = icon("check"),
-                         animation = "pulse")),
-      div (id = "note", "Note: To analyze example dataset, press 'Run' without uploading any files"),
-      hr(),
-      div (id = "update", "Last updated: 29-Jun-2018")
+                         animation = "pulse"),
+          fileInput("domain","Select Domain file (Domain-dProtein)",accept=c('text/csv','text/comma-separated-values,text/plain','csv'))
+      ),
+      #div (id = "note", "Note: To analyse example dataset, press 'Load Data' without uploading any files"),
+      #hr(),
+      div(id="advsettings", 
+          # # PPI fields
+          # tags$div(class="ppifields", checked=NA,
+          #          #tags$hr(),
+          #          tags$h4("PPI File:"),
+          #          tags$p("Motif- and Domain-containing protein fields"),
+          #          # Default fields are from the ELM interactions table
+          #          textInput(inputId="ppimprotein",label = "mProtein column", value = "mProtein"),
+          #          textInput(inputId="ppidprotein",label = "dProtein column", value = "dProtein")
+          # ),
+          # DMI fields
+          tags$div(class="dmifields", checked=NA,
+                   #tags$hr(),
+                   tags$h4("DMI File:"),
+                   tags$p("Motifs and interacting Domain fields"),
+                   # Default fields are from the ELM interactions table
+                   textInput(inputId="dmimotif",label = "Motif column", value = "Elm"),
+                   textInput(inputId="dmidomain",label = "Domain column", value = "interactorDomain")
+          ),
+          # Motif fields
+          tags$div(class="motfields", checked=NA,
+                   #tags$hr(),
+                   tags$h4("Motifs File:"),
+                   tags$p("Motif-containing proteins and their motifs"),
+                   # Default fields are from the ELM instances table, reformatted to match SLiMProb
+                   textInput(inputId="motifmprotein",label = "Motif file mProtein column", value = "AccNum"),
+                   textInput(inputId="motifmotif",label = "Motif file Motif column", value = "Motif")
+          ),
+          # Domain fields
+          tags$div(class="domfields", checked=NA,
+                   #tags$hr(),
+                   tags$h4("Domains File:"),
+                   tags$p("Domain-containing proteins and their domains"),
+                   # Default fields are from the Uniprot Pfam domain table
+                   textInput(inputId="domaindomain",label = "Domain file domain column", value = "pfam"),
+                   textInput(inputId="domaindprotein",label = "Domain file dProtein column", value = "accnum")
+          )
+      ),
+      # Randomisation fields
+      tags$div(class="header", checked=NA,
+               #tags$hr(),
+               tags$h4("Randomisation settings:"),
+               numericInput("shufflenum", label = "Number of randomisations",1000,step=100,min=100)
+      ),
+      div (id = "update", paste0("Last updated:", info$lastedit))
     ),
     
     # MainPanel
@@ -122,18 +162,29 @@ color: black;
       #Tab view
       tabsetPanel(type="tabs",
                   tabPanel("Uploaded Data",
+                           div(id="fullfilecheck",prettyCheckbox("parseddata",label = tags$b("Show parsed data columns"), value = FALSE, status = "info",
+                                                                 icon = icon("check"),
+                                                                 animation = "pulse")),
                            fluidRow(
                              splitLayout(cellWidths = c("50%", "50%", "50%", "50%"), DT::dataTableOutput("udata2"), DT::dataTableOutput("udata")), DT::dataTableOutput("udata4"), DT::dataTableOutput("udata3")
                            )
                   ),
                   
                   tabPanel("Potential DMIs",
+                           div(id="nrpotdmicheck",prettyCheckbox("nrpotdmi",label = tags$b("Show NR potential DMI"), value = FALSE, status = "info",
+                                                                 icon = icon("check"),
+                                                                 animation = "pulse")),
                            DT::dataTableOutput("data"),
                            tags$hr(),
                            downloadButton('downloadDMI', 'Download')
                   ),
                   
-                  tabPanel("Predicted DMIs", DT::dataTableOutput("PredDMIs"),tags$hr(),downloadButton('downloadpredDMI', 'Download')),
+                  tabPanel("Predicted DMIs", 
+                           div(id="nrdmicheck",prettyCheckbox("nrdmi",label = tags$b("Show NR predicted DMI"), value = FALSE, status = "info",
+                                                              icon = icon("check"),
+                                                              animation = "pulse")),
+                           DT::dataTableOutput("PredDMIs"),tags$hr(),downloadButton('downloadpredDMI', 'Download')
+                  ),
                   
                   tabPanel("Statistics", fluidRow(
                     splitLayout(cellWidths = c("75%", "25%"), plotlyOutput("plotbar"))
@@ -144,11 +195,9 @@ color: black;
                     div(id="txtbox",actionButton("setting", "Settings")),
                     div(id="txtbox",downloadButton("downloadPlot", "Download")),
                     
-                    div(id="settings", sliderInput("bins", 
-                                                   "Number of bins",
-                                                   min= 1,
-                                                   max = 200,
-                                                   value = 30),
+                    div(id="settings", 
+                        #sliderInput("bins", "Number of bins", min= 1, max = 200, value = 30),
+                        sliderInput("binwidth", "Width of bins", min= 1, max = 100, value = 1),
                         tags$hr(),
                         tags$h4(tags$strong("Select labels")),
                         
@@ -158,7 +207,7 @@ color: black;
                         tags$style(type="text/css", "#txtbox {display: inline-block; max-width: 200px; }"),
                         div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
                         div(id="txtbox",numericInput("xlimstart", label = "X-axis Start",0)),
-                        div(id="txtbox",numericInput("xlimend", label = "X-axis End",200)),
+                        div(id="txtbox",numericInput("xlimend", label = "Extend X-axis End",0)),
                         tags$hr(),
                         tags$h4(tags$strong("Select Colors")),
                         
@@ -209,6 +258,10 @@ color: black;
              -webkit-text-stroke-color: black;}")
   
   
-  ))
-
+))
+##############################
+# End of GUI code.
+##############################
+#*********************************************************************************************************
+#*********************************************************************************************************
 
