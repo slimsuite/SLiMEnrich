@@ -77,20 +77,23 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                                      "Link Motif classes to binding domains (ELMc-Domain)" = "elmcdom"),
                          selected = "elmcprot",
                          animation = "pulse", status = "warning"),
-      hr(),
+      #hr(),
       div(id="fileuploads",prettyCheckbox("uploadmotifs",label = tags$b("Upload Additional Files"), value = FALSE, status = "info",
                                           icon = icon("check"),
                                           animation = "pulse")),
-      hr(),
+      #hr(),
       
       div(id="uploadmotif", 
-          fileInput("domain","Select Domain file (Domain-dProtein)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
           fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
-          fileInput("Motif","Select Motif file (mProtein-Motif, e.g. ELM or SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+          conditionalPanel(
+            condition = "input.SLiMrunid == false",
+            fileInput("Motif","Select Motif file (mProtein-Motif, e.g. ELM or SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv'))
+          ),
           div(id = "slimrun", textInput("SLiMRun", label = "SLiMProb JobID:", value = "")),
           prettyCheckbox("SLiMrunid", label = "Provide SLiMProb Job ID (Replaces Motif File)", status = "default",
                          icon = icon("check"),
-                         animation = "pulse")
+                         animation = "pulse"),
+          fileInput("domain","Select Domain file (Domain-dProtein)",accept=c('text/csv','text/comma-separated-values,text/plain','csv'))
       ),
       #div (id = "note", "Note: To analyse example dataset, press 'Load Data' without uploading any files"),
       #hr(),
@@ -130,14 +133,14 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                    # Default fields are from the Uniprot Pfam domain table
                    textInput(inputId="domaindomain",label = "Domain file domain column", value = "pfam"),
                    textInput(inputId="domaindprotein",label = "Domain file dProtein column", value = "accnum")
-          ),
-          # Randomisation fields
-          tags$div(class="header", checked=NA,
-                   #tags$hr(),
-                   tags$h4("Randomisation settings:"),
-                   numericInput("shufflenum", label = "Number of randomisations",1000,step=100,min=100)
           )
 
+      ),
+      # Randomisation fields
+      tags$div(class="header", checked=NA,
+               #tags$hr(),
+               tags$h4("Randomisation settings:"),
+               numericInput("shufflenum", label = "Number of randomisations",1000,step=100,min=100)
       ),
       div (id = "update", paste0("Last updated:", info$lastedit))
     ),
@@ -956,7 +959,7 @@ server <- shinyServer(function(input, output, session){
     })
     #rPPI-DMI Mapping                                                               
     #################################################################################
-    showNotification("1000 random PPI files have been created", type = "message", duration = 5)
+    showNotification(paste(input$shufflenum,"random PPI datasets have been created"), type = "message", duration = 5)
     showNotification("Now predicting DMIs from the random PPI data", type = "message", closeButton = TRUE,duration = 15)
     m <- data.frame()
     withProgress(message = 'Predicting random DMI', detail = 0, value = 0, {
@@ -1026,17 +1029,19 @@ server <- shinyServer(function(input, output, session){
     lines(xfit,yfit)
     
     
-    ob_fdr <- x[x$values <= nrow(predDMIs), ]
+    ob_fdr <- x[x$values <= predDMInum, ]
     #axis(side=3, lwd = 0, lwd.ticks = 4, at=nrow(predDMIs), lend=1, labels = FALSE, tcl=5, font=2, col = "black", padj = 0, lty = 3)
     #shows the observed value
     mtext(paste("Observed value: ", predDMInum), side = 3, at=predDMInum, font = 4)
     pvalue = length(x[x >= predDMInum])/input$shufflenum
+    pplace = xlimmax
+    if(predDMInum > xlimmax/2){ pplace = predDMInum/2 }
     if(pvalue == 0){ 
-      mtext(paste0("P-value is: < ", 1/input$shufflenum), side = 3, at=predDMInum/2, font = 4, col = "red")
+      mtext(paste0("P-value is: < ", 1/input$shufflenum), side = 3, at=pplace, font = 4, col = "red")
       pvalue <-  paste0("<b>P-value: </b> < ", 1/input$shufflenum)
     }else{
       #mtext(paste0("P-value is: ", pvalue), side = 3, at=predDMInum+90, font = 4, col = "red")
-      mtext(paste0("P-value is: ", pvalue), side = 3, at=xlimmax, font = 4, col = "red")
+      mtext(paste0("P-value is: ", pvalue), side = 3, at=pplace, font = 4, col = "red")
       pvalue <-  paste0("<b>P-value: </b>", pvalue)
     }
     #mtext(paste0("Mean is: ", mean(x$values)), side = 3, at=mean(x$values), font = 4, col="red")

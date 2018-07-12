@@ -1,0 +1,232 @@
+#*********************************************************************************************************
+#*********************************************************************************************************
+# Short Linear Motif Enrichment Analysis App (SLiMEnrich)
+# Developer: **Sobia Idrees**
+# Version: 1.2.0
+# Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
+#*********************************************************************************************************
+#*********************************************************************************************************
+##############################
+#Version History
+##############################
+#V1.0.1 - Added code for checking whether packages installed. (Removes manual step)
+#V1.0.2 - Better naming conventions in code
+#V1.0.3 - Added titles/captions to data tables (uploaded files).
+#       - Improved summary bar chart (used plotly), 
+#       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
+#V1.0.4 - Checks whether any of the random files is missing and creates if not present.
+#V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
+#V1.0.7 - File headers to lowercase for consistency
+#V1.0.8 - Auto loading example dataset
+#V1.0.9 - Reads SLiMProb REST server output through Job Id.
+#V1.1.0 - Added new tab to show distribution of Domains in the predicted DMI dataset.
+#V1.1.1 - New FDR calculation
+#V1.2.0 - Uses known and predicted ELM information. Predicts DMIs based on domains as well as based on proteins.
+##############################
+#SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+# SLiMEnrich program is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+##############################
+#Required Libraries
+##############################
+package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
+for(package_name in package_names) 
+{ 
+  library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
+} 
+
+##############################
+#GUI of the App
+##############################
+#navbar page with sidebar layout along with tabsets
+ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnrich", tabPanel("Domain-Motif Interactions", tags$head(
+  tags$style(HTML("
+                  .shiny-output-error-validation {
+                  color: red;
+                  font-size: 18px;
+                  font-style: italic;
+                  font-weight: bold;
+                  -webkit-animation: mymove 5s infinite; /* Chrome, Safari, Opera */
+                  animation: mymove 5s infinite;
+                  }
+                  @-webkit-keyframes mymove {
+                  50% {color: black;}
+                  }
+                  .shiny-notification {
+                  font-weight: bold;
+                  bottom: calc(0%)
+                  width: calc(100%)
+                  }
+                  #note{
+                  color: red;
+                  background-color: white;
+                  font-size: 10;
+                  font-weight: bold;
+                  
+                  }
+                  #update{
+                  color: white;
+                  background-color: black;
+                  font-weight: bold;
+                  font-size: 10;
+                  }
+                  #info{
+                  background-color: white;
+                  color: black;
+                  font-weight: bold;
+                  font-size: 10;
+                  }
+                  
+                  " ))
+  ),
+  # Sidebar
+  sidebarLayout(
+    sidebarPanel(
+      fileInput("PPI","Select Interaction file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+      
+      
+      div(id = "slimrun", textInput("SLiMRun", label = "", value = "")),
+      actionButton("run", "Run", width = "100px"),
+      hr(),
+      
+      prettyRadioButtons(inputId = "DMIStrategy",
+                         label = "DMI Strategy", icon = icon("check"),
+                         choices = c("Link mProteins directly to dProteins (ELMi-Protein)" = "elmiprot", 
+                                     "Link Motif classes directly to dProteins (ELMc-Protein)" = "elmcprot",
+                                     "Link Motif classes to binding domains (ELMc-Domain)" = "elmcdom"),
+                         selected = "elmcprot",
+                         animation = "pulse", status = "warning"),
+      hr(),
+      div(id="fileuploads",prettyCheckbox("uploadmotifs",label = tags$b("Upload Files"), value = FALSE, status = "info",
+                                          icon = icon("check"),
+                                          animation = "pulse")),
+      hr(),
+      
+      div(id="uploadmotif", 
+          fileInput("domain","Select Domain file (Domain-dProtein)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+          fileInput("MotifDomain","Select Motif-Domain file",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+          fileInput("Motif","Select Motif file (mProtein-Motif, e.g. ELM or SLiMProb)",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
+          prettyCheckbox("SLiMrunid", label = "Provide SLiMProb Job ID (Replaces Motif File)", status = "default",
+                         icon = icon("check"),
+                         animation = "pulse")
+      ),
+      
+      div (id = "note", "Note: To analyze example dataset, press 'Run' without uploading any files"),
+      hr(),
+      div(id="advsettings", 
+          div(id = "info", "Domain and Domain containing proteins"),hr(),
+          # Default fields are from the Uniprot Pfam domain table
+          textInput(inputId="domaindomain",label = "Domain file domain column", value = "pfam"),
+          textInput(inputId="domaindprotein",label = "Domain file dProtein column", value = "accnum"),
+          
+          div(id = "info", "Motif and interacting Domains"),hr(),
+          # Default fields are from the ELM interactions table
+          textInput(inputId="dmimotif",label = "DMI file Motif column", value = "Elm"),
+          textInput(inputId="dmidomain",label = "DMI file Domain column", value = "interactorDomain"),
+          
+          div(id = "info", "Motif containing proteins and their interacting ELMs"),hr(),
+          # Default fields are from the ELM instances table, reformatted to match SLiMProb
+          textInput(inputId="motifmprotein",label = "Motif file mProtein column", value = "AccNum"),
+          textInput(inputId="motifmotif",label = "Motif file Motif column", value = "Motif")
+      ),
+      div (id = "update", "Last updated: 29-Jun-2018")
+    ),
+    
+    # MainPanel
+    mainPanel(
+      #Creates a seperate window (pop up window)
+      bsModal("DisE", "ELM Distribution", "godis", size = "large", plotlyOutput("diselmchart")),
+      bsModal("DidsE", "Domain Distribution", "godisd", size = "large", plotlyOutput("disdomchart")),
+      #Tab view
+      tabsetPanel(type="tabs",
+                  tabPanel("Uploaded Data",
+                           fluidRow(
+                             splitLayout(cellWidths = c("50%", "50%", "50%", "50%"), DT::dataTableOutput("udata2"), DT::dataTableOutput("udata")), DT::dataTableOutput("udata4"), DT::dataTableOutput("udata3")
+                           )
+                  ),
+                  
+                  tabPanel("Potential DMIs",
+                           DT::dataTableOutput("data"),
+                           tags$hr(),
+                           downloadButton('downloadDMI', 'Download')
+                  ),
+                  
+                  tabPanel("Predicted DMIs", DT::dataTableOutput("PredDMIs"),tags$hr(),downloadButton('downloadpredDMI', 'Download')),
+                  
+                  tabPanel("Statistics", fluidRow(
+                    splitLayout(cellWidths = c("75%", "25%"), plotlyOutput("plotbar"))
+                  )),
+                  tabPanel("Histogram", fluidRow(
+                    splitLayout(cellWidths = c("50%", "50%"), plotOutput("histogram"), htmlOutput("summary"))),
+                    tags$hr(),
+                    div(id="txtbox",actionButton("setting", "Settings")),
+                    div(id="txtbox",downloadButton("downloadPlot", "Download")),
+                    
+                    div(id="settings", sliderInput("bins", 
+                                                   "Number of bins",
+                                                   min= 1,
+                                                   max = 200,
+                                                   value = 30),
+                        tags$hr(),
+                        tags$h4(tags$strong("Select labels")),
+                        
+                        checkboxInput("barlabel", label="Bar Labels", value = FALSE, width = NULL),
+                        div(id="txtbox", textInput("text3", label = "Main title", value = "Distribution of random DMIs")),
+                        div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Number of random DMIs")),
+                        tags$style(type="text/css", "#txtbox {display: inline-block; max-width: 200px; }"),
+                        div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
+                        div(id="txtbox",numericInput("xlimstart", label = "X-axis Start",0)),
+                        div(id="txtbox",numericInput("xlimend", label = "X-axis End",200)),
+                        tags$hr(),
+                        tags$h4(tags$strong("Select Colors")),
+                        
+                        div(id="txtbox",colourpicker::colourInput("col", "Select bar colour", "firebrick3")),
+                        div(id="txtbox",colourpicker::colourInput("col2", "Select background colour", "white")),
+                        tags$hr(),
+                        tags$h4(tags$strong("Select width/height to download plot as png")),
+                        
+                        div(id="txtbox",numericInput("width", label = "Width ", value = 2600)),
+                        div(id="txtbox",numericInput("height", label = "Height ", value = 1600))
+                        
+                    )),
+                  tabPanel("Distribution of ELMs",
+                           DT::dataTableOutput("diselmsdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godis", "Interactive View"))
+                  ),
+                  tabPanel("Distribution of Domains",
+                           DT::dataTableOutput("disdomdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godisd", "Interactive View"))
+                  ),
+                  tabPanel("Network",fluidPage(tags$br(), selectInput("selectlayout", label = "Select Layout",
+                                                                      choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
+                                                                      selected = "piecewise.layout"),
+                                               
+                                               
+                                               hr(),
+                                               
+                                               visNetworkOutput(outputId = "network",
+                                                                height = "1500px",
+                                                                width = "1500px")
+                                               
+                                               
+                  )
+                  )
+                  
+                  
+      )
+    )
+  )),
+  
+  
+  
+  tabPanel(HTML("</a></li><li><a href=\"https://github.com/slimsuite/SLiMEnrich/wiki/Quick-Tutorial\", target = _blank>Getting Started")),tabPanel(HTML("</a></li><li><a href=\"https://github.com/slimsuite/SLiMEnrich/wiki\", target = _blank>Instructions"
+  )), useShinyjs(),theme = shinytheme("sandstone"),
+  tags$style(type="text/css", "#title {font-family: 'Impact', cursive;
+             font-size: 32px;
+             font-style:italic;
+             font-color: #fff;
+             -webkit-text-stroke-width: 1px;
+             -webkit-text-stroke-color: black;}")
+  
+  
+  ))
+
