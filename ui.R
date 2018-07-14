@@ -1,19 +1,7 @@
 #*********************************************************************************************************
 #*********************************************************************************************************
 # Please see main.R for App version, history and license information.
-#*********************************************************************************************************
-#*********************************************************************************************************
-thisisshiny = TRUE
-source('main.R')
-##############################
-#Required Libraries
-#?# Might not be needed as loaded by server.R
-##############################
-#package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
-#for(package_name in package_names) 
-#{ 
-#  library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
-#} 
+source("main.R")
 #*********************************************************************************************************
 #*********************************************************************************************************
 ##############################
@@ -109,15 +97,6 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
       #div (id = "note", "Note: To analyse example dataset, press 'Load Data' without uploading any files"),
       #hr(),
       div(id="advsettings", 
-          # # PPI fields
-          # tags$div(class="ppifields", checked=NA,
-          #          #tags$hr(),
-          #          tags$h4("PPI File:"),
-          #          tags$p("Motif- and Domain-containing protein fields"),
-          #          # Default fields are from the ELM interactions table
-          #          textInput(inputId="ppimprotein",label = "mProtein column", value = "mProtein"),
-          #          textInput(inputId="ppidprotein",label = "dProtein column", value = "dProtein")
-          # ),
           # DMI fields
           tags$div(class="dmifields", checked=NA,
                    #tags$hr(),
@@ -246,8 +225,6 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
       )
     )
   )),
-  
-  
   
   tabPanel(HTML("</a></li><li><a href=\"https://github.com/slimsuite/SLiMEnrich/wiki/Quick-Tutorial\", target = _blank>Getting Started")),tabPanel(HTML("</a></li><li><a href=\"https://github.com/slimsuite/SLiMEnrich/wiki\", target = _blank>Instructions"
   )), useShinyjs(),theme = shinytheme("sandstone"),

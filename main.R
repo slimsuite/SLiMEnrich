@@ -33,7 +33,7 @@ devmode = FALSE   # This affects some of the printing to screen
 #V1.3.0 - Updated the DMI Strategy Handling. Added separate load functions. Modified progress bars and notifications.
 #V1.3.1 - Partitioned out some general code into main.R. Updated ui.R and server.R. Updated slimenrich.R.
 #       - Added options to slimenrich.R for output directory, DMI strategy, randomisations and histogram settings.
-#V1.3.2 - Modified ui.R to load main.R for server functions.
+#V1.3.2 - Modified ui.R to load main.R for server functions. Tidied up library loading.
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -59,11 +59,8 @@ load_or_install = function(package_names)
     library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
   } 
 }
-#if(thisisshiny){
- package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets","optparse")
-#}else{
-# package_names = c("ggplot2", "visNetwork", "igraph","optparse")
-#}
+# Package list. This has been consolidated for both the shiny and standalone implementations
+package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets","optparse")
 if(devmode){
   load_or_install(package_names)
 }else{
