@@ -137,7 +137,7 @@ server <- shinyServer(function(input, output, session){
       adata$data$loads$PPI = input$run
       adata$data$FullPPI = loadPPIData(input)
       adata$data$PPI = unique(parsePPIData(input,adata$data$FullPPI))
-      if(ncol(adata$data$PPI != 2)){ showNotification("Cannot find two acceptable mProtein-dProtein PPI fields! Please reload data.", type="error") }
+      if(ncol(adata$data$PPI) != 2){ showNotification("Cannot find two acceptable mProtein-dProtein PPI fields! Please reload data.", type="error") }
     }
     return(adata$data$PPI)
   })
@@ -149,7 +149,7 @@ server <- shinyServer(function(input, output, session){
       adata$data$loads$Motifs = input$run
       adata$data$FullMotifs = loadDataMotif(input)
       adata$data$Motifs = unique(parseDataMotif(input,adata$data$FullMotifs))
-      if(ncol(adata$data$Motifs != 2)){ showNotification("Cannot find two acceptable mProtein-Motif fields! Please reload data.", type="error") }
+      if(ncol(adata$data$Motifs) != 2){ showNotification("Cannot find two acceptable mProtein-Motif fields! Please reload data.", type="error") }
     }
     return(adata$data$Motifs)
   })
@@ -161,7 +161,7 @@ server <- shinyServer(function(input, output, session){
       adata$data$loads$Domains = input$run
       adata$data$FullDomains = loadDatadomain(input)
       adata$data$Domains = unique(parseDatadomain(input,adata$data$FullDomains))
-      if(ncol(adata$data$Domains != 2)){ showNotification("Cannot find two acceptable Domain-dProtein fields! Please reload data.", type="error") }
+      if(ncol(adata$data$Domains) != 2){ showNotification("Cannot find two acceptable Domain-dProtein fields! Please reload data.", type="error") }
     }
     return(adata$data$Domains)
   })
@@ -172,7 +172,7 @@ server <- shinyServer(function(input, output, session){
       adata$data$loads$DMI = input$run
       adata$data$FullDMI = loadDataMotifDomain(input)
       adata$data$DMI = unique(parseDataMotifDomain(input,adata$data$FullDMI))
-      if(ncol(adata$data$DMI != 2)){ showNotification("Cannot find two acceptable DMI fields! Please reload data.", type="error") }
+      if(ncol(adata$data$DMI) != 2){ showNotification("Cannot find two acceptable DMI fields! Please reload data.", type="error") }
     }
     return(adata$data$DMI)
   })
@@ -245,11 +245,16 @@ server <- shinyServer(function(input, output, session){
     writeLines("Potential DMI")
     if(adata$data$loads$Calculate < input$run){
       withProgress(message = 'Potential DMI', detail = "(DMI)", value = 0, {
+        PPI2 <- inputDataPPI()
+        ppidProtein = as.character(unique(PPI2$dProtein))
+        ppimProtein = as.character(unique(PPI2$mProtein))
         Domain <- inputDataMotifDomain()
         incProgress(0.2, detail = "(Domains)")
         dProtein <- inputDatadomain()
+        dProtein <- dProtein[dProtein$dProtein %in% ppidProtein,]
         incProgress(0.2, detail = "(Motifs)")
         Motif_NR <- inputDataMotif()
+        Motif_NR <- Motif_NR[Motif_NR$mProtein %in% ppimProtein,]
         #Join/Merge two files based on Motif
         incProgress(0.2, detail = "(Joining data)")
         Join <- merge(Motif_NR, Domain, by="Motif")

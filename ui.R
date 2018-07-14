@@ -157,6 +157,10 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                   ),
                   
                   tabPanel("Potential DMIs",
+                           conditionalPanel(
+                             condition = "input.hidehelp == false",
+                             includeMarkdown("doc/tabs/potential.md")
+                           ),
                            div(id="nrpotdmicheck",prettyCheckbox("nrpotdmi",label = tags$b("Show NR potential DMI"), value = FALSE, status = "info",
                                                                  icon = icon("check"),
                                                                  animation = "pulse")),
@@ -166,6 +170,10 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                   ),
                   
                   tabPanel("Predicted DMIs", 
+                           conditionalPanel(
+                             condition = "input.hidehelp == false",
+                             includeMarkdown("doc/tabs/predicted.md")
+                           ),
                            div(id="nrdmicheck",prettyCheckbox("nrdmi",label = tags$b("Show NR predicted DMI"), value = FALSE, status = "info",
                                                               icon = icon("check"),
                                                               animation = "pulse")),
@@ -173,9 +181,17 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                   ),
                   
                   tabPanel("Statistics", fluidRow(
+                    conditionalPanel(
+                      condition = "input.hidehelp == false",
+                      includeMarkdown("doc/tabs/statistics.md")
+                    ),
                     splitLayout(cellWidths = c("75%", "25%"), plotlyOutput("plotbar"))
                   )),
                   tabPanel("Histogram", fluidRow(
+                    conditionalPanel(
+                      condition = "input.hidehelp == false",
+                      includeMarkdown("doc/tabs/histogram.md")
+                    ),
                     splitLayout(cellWidths = c("50%", "50%"), plotOutput("histogram"), htmlOutput("summary"))),
                     tags$hr(),
                     div(id="txtbox",actionButton("setting", "Settings")),
@@ -206,25 +222,34 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                         div(id="txtbox",numericInput("height", label = "Height ", value = 1600))
                         
                     )),
-                  tabPanel("Distribution of ELMs",
+                  tabPanel("Motifs",
+                           conditionalPanel(
+                             condition = "input.hidehelp == false",
+                             includeMarkdown("doc/tabs/motifs.md")
+                           ),
                            DT::dataTableOutput("diselmsdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godis", "Interactive View"))
                   ),
-                  tabPanel("Distribution of Domains",
+                  tabPanel("Domains",
+                           conditionalPanel(
+                             condition = "input.hidehelp == false",
+                             includeMarkdown("doc/tabs/domains.md")
+                           ),
                            DT::dataTableOutput("disdomdata"), tags$br(),tags$hr(),div(id="txtbox",actionButton("godisd", "Interactive View"))
                   ),
-                  tabPanel("Network",fluidPage(tags$br(), selectInput("selectlayout", label = "Select Layout",
+                  tabPanel("Network",
+                           conditionalPanel(
+                             condition = "input.hidehelp == false",
+                             includeMarkdown("doc/tabs/network.md")
+                           ),
+                           fluidPage(tags$br(), 
+                                     selectInput("selectlayout", label = "Select Layout",
                                                                       choices = list("Circle" = "layout_in_circle","Nice" = "layout_nicely", "Random" = "layout_randomly", "Piecewise" = "piecewise.layout", "Gem" = "layout.gem"),
                                                                       selected = "piecewise.layout"),
+                                     hr(),
+                                     visNetworkOutput(outputId = "network", height = "1500px", width = "1500px")
                                                
                                                
-                                               hr(),
-                                               
-                                               visNetworkOutput(outputId = "network",
-                                                                height = "1500px",
-                                                                width = "1500px")
-                                               
-                                               
-                  )
+                            )
                   ),
                   tabPanel("Help",
                            includeMarkdown("README.md")     

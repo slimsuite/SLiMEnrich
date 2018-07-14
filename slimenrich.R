@@ -138,9 +138,14 @@ writeLines(paste0('DMI: ', nrow(D$FullDMI), " (", ncol(D$FullDMI), " fields); ",
 writeLines(paste0('Domains: ', nrow(D$FullDomains), " (", ncol(D$FullDomains), " fields); ", nrow(D$Domains), " NR"))
 
 ### Generate potential DMI
+PPI2 <- D$PPI
+ppidProtein = as.character(unique(PPI2$dProtein))
+ppimProtein = as.character(unique(PPI2$mProtein))
 Domain <- D$DMI
 dProtein <- D$Domains
+dProtein <- dProtein[dProtein$dProtein %in% ppidProtein,]
 Motif_NR <- D$Motifs
+Motif_NR <- Motif_NR[Motif_NR$mProtein %in% ppimProtein,]
 #Join/Merge two files based on Motif
 Join <- merge(Motif_NR, Domain, by="Motif")
 #Domain-dProtein Mapping
@@ -210,7 +215,6 @@ writeLines("potentialDMIs.csv file has been saved in output folder")
 # PPI2<-read.csv(opt$pFile,header=TRUE,sep=",")
 # PPI2 <- unique(PPI2)
 # names(PPI2) <- c("mProtein", "dProtein")
-PPI2 <- adata$data$PPI
 writeLines("Finding predicted DMIs...", sep="\n")
 predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
 Uni_predDMIs <- unique(predDMI)
