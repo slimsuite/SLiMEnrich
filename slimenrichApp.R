@@ -1,5 +1,7 @@
 #*********************************************************************************************************
 #*********************************************************************************************************
+# NOTE: This file is a copy of the main server versions. It is primarily for development and will be
+# deleted at some point - please run the shiny app from ui.R or server.R.
 # Please see main.R for App version, history and license information.
 source("main.R")
 writeLines(paste("Running",info$apptitle,"Version",info$version))
