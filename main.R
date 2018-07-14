@@ -60,7 +60,7 @@ load_or_install = function(package_names)
   } 
 }
 # Package list. This has been consolidated for both the shiny and standalone implementations
-package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets","optparse")
+package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
 if(devmode){
   load_or_install(package_names)
 }else{
