@@ -75,6 +75,9 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                          selected = "elmcprot",
                          animation = "pulse", status = "warning"),
       #hr(),
+      div(id="hidehelpmd",prettyCheckbox("hidehelp",label = tags$b("Hide tab info text"), value = FALSE, status = "info",
+                                          icon = icon("check"),
+                                          animation = "pulse")),
       div(id="fileuploads",prettyCheckbox("uploadmotifs",label = tags$b("Upload Additional Files"), value = FALSE, status = "info",
                                           icon = icon("check"),
                                           animation = "pulse")),
@@ -140,7 +143,11 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
       #Tab view
       tabsetPanel(type="tabs",
                   tabPanel("Uploaded Data",
-                           htmlOutput("docs_tables"),
+                           #htmlOutput("docs_tables"),
+                           conditionalPanel(
+                             condition = "input.hidehelp == false",
+                             includeMarkdown("doc/tabs/uploaded.md")
+                           ),
                            div(id="fullfilecheck",prettyCheckbox("parseddata",label = tags$b("Show parsed data columns"), value = FALSE, status = "info",
                                                                  icon = icon("check"),
                                                                  animation = "pulse")),
