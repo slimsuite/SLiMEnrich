@@ -706,7 +706,7 @@ server <- shinyServer(function(input, output, session){
     })
     #rPPI-DMI Mapping                                                               
     #################################################################################
-    showNotification(paste(input$shufflenum,"random PPI datasets have been created"), type = "message", duration = 5)
+    showNotification(paste(length(data),"random PPI datasets have been created"), type = "message", duration = 5)
     showNotification("Now predicting DMIs from the random PPI data", type = "message", closeButton = TRUE,duration = 15)
     m <- data.frame()
     withProgress(message = 'Predicting random DMI', detail = 0, value = 0, {
@@ -723,6 +723,7 @@ server <- shinyServer(function(input, output, session){
         incProgress(1/input$shufflenum, detail = i)
       }
     })
+    writeLines(paste("Predicted:",nrow(m)))
     m
   })
   #*************************************************************************************
