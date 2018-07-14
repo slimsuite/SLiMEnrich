@@ -7,8 +7,8 @@
 # Load main.R data and functions
 #options(warn = -1)
 library(stringr)
-#thisisshiny = FALSE  # This controls the packages loaded
-devmode = FALSE   # This affects some of the printing to screen
+thisisshiny = FALSE  # This controls the packages loaded
+#devmode = FALSE   # This affects some of the printing to screen
 initial.options <- commandArgs(trailingOnly = FALSE)
 file.arg.name <- "--file="
 script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
@@ -21,15 +21,15 @@ writeLines(c("","","########################################")[3:1])
 writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),""))
 #*********************************************************************************************************
 #*********************************************************************************************************
-package_names = c("ggplot2", "visNetwork", "igraph","optparse","stringr")
-if(devmode){
-  load_or_install(package_names)
-}else{
-  suppressMessages(
-    suppressWarnings(
-      load_or_install(package_names)
-    ))
-}
+# package_names = c("ggplot2", "visNetwork", "igraph","optparse","stringr")
+# if(devmode){
+#   load_or_install(package_names)
+# }else{
+#   suppressMessages(
+#     suppressWarnings(
+#       load_or_install(package_names)
+#     ))
+# }
 ##########################################################################
 ## Options
 input = makeInputSettings()
