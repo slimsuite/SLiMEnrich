@@ -38,34 +38,34 @@ input = makeInputSettings()
 option_list = list(
   #PPI file
   make_option(c("-p", "--pFile"), type="character", default=NULL, 
-              help="PPI file name [required]", metavar="character"),
+              help="PPI file name [required]. Should have mProtein and dProtein fields.", metavar="FILENAME"),
   #SLiMs file 
   make_option(c("-s", "--mFile"), type="character", default=paste0(rdir,"/data/known.occ.csv"), 
-              help="SLiM occurrence file name", metavar="character"),
+              help="SLiM occurrence file name. Should have mProtein (or AccNum) and Motif fields. Not used if DMI strategy is `elmiprot`. [Default = ELM instances]", metavar="FILENAME"),
   #Motif-Domain file
   make_option(c("-m", "--mdFile"), type="character", default="ELM data", 
-              help="DMI file name", metavar="character"),
+              help="DMI file name. Should have Motif and Domain fields unless using ELM input. [Default = ELM interaction data]", metavar="FILENAME"),
   #Domain file
   make_option(c("-d", "--dFile"), type="character", default=paste0(rdir,"/data/domain.csv"), 
-              help="Domain file name", metavar="character"),
+              help="Domain file name. Should have Domain (or pfam) and dProtein (or accnum) fields. Not used if DMI strategy is `elmiprot` or `elmcprot`. [Default = Pfam domain for human Uniprot]", metavar="FILENAME"),
   #DMI strategy
   make_option(c("-t", "--strategy"), type="character", default="elmcprot", 
-              help="DMI strategy (elmiprot/elmcprot/elmcdom)", metavar="character"),
+              help="DMI strategy (elmiprot/elmcprot/elmcdom). See docs for details.", metavar="character"),
   #Output directory
   make_option(c("-o", "--output"), type="character", default="./output/", 
-              help="Output directory. Trailing characters will set file prefix (e.g. -o ./output/myrun.)", metavar="character"),
+              help="Output directory. Trailing characters will set file prefix (e.g. -o ./output/myrun.). Note: by default, the output directory is placed in the run directory. [Default = ./output/]", metavar="PATH"),
   #Randomisations
   make_option(c("-r", "--random"), type="integer", default=1000, 
-              help="Number of PPI randomisations", metavar="integer"),
+              help="Number of PPI randomisations. [Default = 1000]", metavar="integer"),
   #Reuse data
   make_option(c("-u", "--userandom"), type="logical", default=FALSE, action = "store_true", 
-              help="Number of PPI randomisations", metavar=""),
+              help="Whether to load and reuse existing PPI randomisations. WARNING: Make sure PPI input is unchanged when using this option. [Default = FALSE]", metavar=""),
   #X axis maximum
   make_option(c("-x", "--xmax"), type="integer", default=0, 
-              help="Extend histogram x-axis to xmax", metavar="integer"),
+              help="Extend histogram x-axis to xmax.", metavar="integer"),
   #Histogram bin size
   make_option(c("-b", "--binsize"), type="integer", default=1, 
-              help="Set histogram bin size", metavar="integer")
+              help="Set histogram bin size. [Default = 1]", metavar="integer")
 ); 
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser)

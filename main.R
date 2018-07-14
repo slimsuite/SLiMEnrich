@@ -329,8 +329,22 @@ makeInputSettings <- function(){
 }
 ##############################################################
 
+##############################################################
+# Documentation markdown
+##############################################################
+# This is a list containing vectors of markdown text. 
+# These are joined with \n characters prior to rendering, e.g.
+# each element in the vector is a line of markdown.
+# These are used for pairs of htmlOutput() in ui.R and renderUI() in server.R.
+# NOTE: An alternative is to load MD in the UI:  includeMarkdown("README.md")     
+docs = list()
+docs$tables = c("#### Uploaded Data","","Select PPI data, DMI strategy and optional data uploads.","Click **LOAD DATA**.",
+                "Uploaded data will be displayed below.",
+                "Check the **Show parsed data columns** box to display which data have been parsed from each input file.",
+                "","**Note:** To analyse the example dataset, press **LOAD DATA** without uploading any files.",
+                "","---","")
 
-
+##############################################################
 
   
 

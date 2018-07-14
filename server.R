@@ -16,31 +16,7 @@ server <- shinyServer(function(input, output, session){
   adata <- reactiveValues(
     data = setupData()
   )
-  # This function computes a new data set. It can optionally take a function,
-  # updateProgress, which will be called as each row of data is added.
-  #?# What is this for in the app?!
-  compute_data <- function(updateProgress = NULL) {
-    # Create 0-row data frame which will be used to store data
-    dat <- data.frame(x = numeric(0), y = numeric(0))
-    
-    for (i in 1:10) {
-      Sys.sleep(0.25)
-      
-      # Compute new row of data
-      new_row <- data.frame(x = rnorm(1), y = rnorm(1))
-      
-      # If we were passed a progress update function, call it
-      if (is.function(updateProgress)) {
-        text <- paste0("x:", round(new_row$x, 2), " y:", round(new_row$y, 2))
-        updateProgress(detail = text)
-      }
-      
-      # Add the new row of data
-      dat <- rbind(dat, new_row)
-    }
-    
-    dat
-  }
+
   observeEvent(input$setting, {
     toggle(id = "settings", anim = TRUE)
   })
@@ -161,6 +137,7 @@ server <- shinyServer(function(input, output, session){
       adata$data$loads$PPI = input$run
       adata$data$FullPPI = loadPPIData(input)
       adata$data$PPI = unique(parsePPIData(input,adata$data$FullPPI))
+      if(ncol(adata$data$PPI != 2)){ showNotification("Cannot find two acceptable mProtein-dProtein PPI fields! Please reload data.", type="error") }
     }
     return(adata$data$PPI)
   })
@@ -172,6 +149,7 @@ server <- shinyServer(function(input, output, session){
       adata$data$loads$Motifs = input$run
       adata$data$FullMotifs = loadDataMotif(input)
       adata$data$Motifs = unique(parseDataMotif(input,adata$data$FullMotifs))
+      if(ncol(adata$data$Motifs != 2)){ showNotification("Cannot find two acceptable mProtein-Motif fields! Please reload data.", type="error") }
     }
     return(adata$data$Motifs)
   })
@@ -183,6 +161,7 @@ server <- shinyServer(function(input, output, session){
       adata$data$loads$Domains = input$run
       adata$data$FullDomains = loadDatadomain(input)
       adata$data$Domains = unique(parseDatadomain(input,adata$data$FullDomains))
+      if(ncol(adata$data$Domains != 2)){ showNotification("Cannot find two acceptable Domain-dProtein fields! Please reload data.", type="error") }
     }
     return(adata$data$Domains)
   })
@@ -193,13 +172,23 @@ server <- shinyServer(function(input, output, session){
       adata$data$loads$DMI = input$run
       adata$data$FullDMI = loadDataMotifDomain(input)
       adata$data$DMI = unique(parseDataMotifDomain(input,adata$data$FullDMI))
+      if(ncol(adata$data$DMI != 2)){ showNotification("Cannot find two acceptable DMI fields! Please reload data.", type="error") }
     }
     return(adata$data$DMI)
   })
   
   #########################################################
+  # Documentation markdown for htmlOutput() UI elements
+  #########################################################
+  output$docs_tables <- renderUI({
+    md = docs$tables
+    md = paste(md,sep="\n")
+    return(HTML(renderMarkdown(text=md)))
+  })
+  
+  #########################################################
   #Displaying Data Tables
-  ####################################################
+  #########################################################
   # PPI Table display
   output$udata2<-renderDataTable({
     inputDataPPI()
@@ -804,30 +793,6 @@ server <- shinyServer(function(input, output, session){
       HTML(paste("<font color=\"#FF0000\"><b>Summary of Histogram</b></font>", pvalue, obsdmi, obsval, meanvalue, Escore, FDR, sep = '<hr/>'))
       
     })
-  }
-  
-  #?# What does this function actually do?!
-  compute_data <- function(updateProgress = NULL) {
-    # Create 0-row data frame which will be used to store data
-    dat <- data.frame(x = numeric(0), y = numeric(0))
-    
-    for (i in 1:10) {
-      Sys.sleep(0.25)
-      
-      # Compute new row of data
-      new_row <- data.frame(x = rnorm(1), y = rnorm(1))
-      
-      # If we were passed a progress update function, call it
-      if (is.function(updateProgress)) {
-        text <- paste0("x:", round(new_row$x, 2), " y:", round(new_row$y, 2))
-        updateProgress(detail = text)
-      }
-      
-      # Add the new row of data
-      dat <- rbind(dat, new_row)
-    }
-    
-    dat
   }
   
   #creates plot in  a seperate window

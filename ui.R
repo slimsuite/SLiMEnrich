@@ -52,10 +52,8 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
   sidebarLayout(
     sidebarPanel(
       tags$div(class="note", checked=NA,
-               tags$h4(paste(info$apptitle,"Version",info$version)),
-               tags$b("Note: To analyse example dataset, press 'Load Data' without uploading any files."),
-               tags$hr()
-               #tags$h4("PPI File:")
+               tags$h4(paste(info$apptitle,"Version",info$version))#,
+               #tags$b("Note: To analyse example dataset, press 'Load Data' without uploading any files."),
       ),
       
       fileInput("PPI","Select Interaction file:",accept=c('text/csv','text/comma-separated-values,text/plain','csv')),
@@ -142,6 +140,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
       #Tab view
       tabsetPanel(type="tabs",
                   tabPanel("Uploaded Data",
+                           htmlOutput("docs_tables"),
                            div(id="fullfilecheck",prettyCheckbox("parseddata",label = tags$b("Show parsed data columns"), value = FALSE, status = "info",
                                                                  icon = icon("check"),
                                                                  animation = "pulse")),
@@ -219,6 +218,9 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                                                
                                                
                   )
+                  ),
+                  tabPanel("Help",
+                           includeMarkdown("README.md")     
                   )
                   
                   
