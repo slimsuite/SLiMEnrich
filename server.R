@@ -1,49 +1,24 @@
 #*********************************************************************************************************
 #*********************************************************************************************************
-# Short Linear Motif Enrichment Analysis App (SLiMEnrich)
-# Developer: **Sobia Idrees**
-# Version: 1.1.1
-# Description: SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyzes enrichment through permutation test.
+# Please see main.R for App version, history and license information.
+source("main.R")
+devmode = FALSE
+writeLines(paste("Running",info$apptitle,"Version",info$version))
 #*********************************************************************************************************
 #*********************************************************************************************************
-##############################
-#Version History
-##############################
-#V1.0.1 - Added code for checking whether packages installed. (Removes manual step)
-#V1.0.2 - Better naming conventions in code
-#V1.0.3 - Added titles/captions to data tables (uploaded files).
-#       - Improved summary bar chart (used plotly), 
-#       - Improved histogram module (removed separate window option for plot, added width/height input option in settings of histogram to download plot as png file). 
-#V1.0.4 - Checks whether any of the random files is missing and creates if not present.
-#V1.0.5 - Added a new tab to show distribution of ELMs in the predicted DMI dataset in tabular as well as in interactive view.
-#V1.0.7 - File headers to lowercase for consistency
-#V1.0.8 - Auto loading example dataset
-#V1.0.9 - Reads SLiMProb REST server output through Job Id.
-#V1.1.0 - Added new tab to show distribution of Domains in the predicted DMI dataset.
-#V1.1.1 - New FDR calculation
-#V1.2.0 - Uses known and predicted ELM information. Predicts DMIs based on domains as well as based on proteins.
-##############################
-#SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-# SLiMEnrich program is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-# You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>..
-##############################
-#Required Libraries
-##############################
-package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr")
-for(package_name in package_names) 
-{ 
-  library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
-} 
 
 ##############################
 # Server logic
 ##############################
 options(shiny.maxRequestSize=10000*1024^2)
 server <- shinyServer(function(input, output, session){
-  hide("advsettings", anim = FALSE)
+  # Setup the data list that will store loaded data
+  adata <- reactiveValues(
+    data = setupData()
+  )
   # This function computes a new data set. It can optionally take a function,
   # updateProgress, which will be called as each row of data is added.
+  #?# What is this for in the app?!
   compute_data <- function(updateProgress = NULL) {
     # Create 0-row data frame which will be used to store data
     dat <- data.frame(x = numeric(0), y = numeric(0))
@@ -74,12 +49,8 @@ server <- shinyServer(function(input, output, session){
   })
   observeEvent(input$uploadmotifs, {
     toggle(id = "uploadmotif", anim = TRUE)
-  })
-  
-  observeEvent(input$adsettings, {
     toggle(id = "advsettings", anim = TRUE)
   })
- 
   observeEvent(input$SLiMrunid, {
     toggle(id = "slimrun", anim = TRUE)
     if(input$SLiMrunid){
@@ -97,21 +68,45 @@ server <- shinyServer(function(input, output, session){
     x
     
   }
+  # Generate notifications of loaded data; calculates predicted and potential DMI for later display
   observeEvent(input$run, {
-    MotifFile<-input$Motif
-    PPIFile<-input$PPI
-    if(is.null(PPIFile)){
-      showNotification("PPI file is missing. Loading Example dataset", type = "error", duration = 5)
-    }
+    withProgress(message = 'Loading data', detail = "PPI", value = 0, {
+      PPIFile<-input$PPI
+      incProgress(0.25, detail = "DMI")
+      MotifDomainFile<-input$MotifDomain
+      incProgress(0.25, detail = "Motifs")
+      MotifFile<-input$Motif
+      incProgress(0.25, detail = "Domains")
+      DomainFile<-input$domain
+      incProgress(0.25, detail = "Complete")
+    })
     
+    if(is.null(PPIFile)){
+      showNotification("PPI file not provided: loading example Adenovirus PHISTO dataset", type = "warning", duration = 5)
+    }
     SliMJobId <- input$SLiMRun
     if(is.null(MotifFile) && SliMJobId == "" ){
-      showNotification("SLiM file is missing. Loading Example dataset", type = "error", duration = 5)
-      
-      
+      showNotification("SLiM file not provided: loading ELM instances", type = "warning", duration = 5)
+    }
+    if(is.null(MotifDomainFile)){
+      showNotification("DMI file not provided: loading ELM interaction data", type = "warning", duration = 5)
+    }
+    if(is.null(DomainFile)){
+      showNotification("Domain file not provided: loading reviewed human Uniprot Pfam data", type = "warning", duration = 5)
     }
     if(is.null(PPIFile)){
-      showNotification("Loaded Example dataset", type = "warning", duration = NULL)    }
+      showNotification("Loaded example Adenovirus PHISTO dataset", type = "warning", duration = 30)    
+    }
+    # Generate potential and predicted DMIs on loading data
+    withProgress(message = 'Calculating DMI', detail = "Potential", value = 0, {
+      potentialDMIs()
+      showNotification(paste(nrow(adata$data$potentialDMI),"potential DMI;",nrow(adata$data$potentialDMINR),"NR"), type = "message", duration = NULL)
+      incProgress(0.5, detail = "Predicted")
+      predictedDMIs()
+      showNotification(paste(nrow(adata$data$predDMI),"predicted DMI;",nrow(adata$data$predDMINR),"NR"), type = "message", duration = NULL)
+      incProgress(0.5, detail = "Complete")
+    })
+    adata$data$loads$Calculate = input$run
   })
   
   # observeEvent(input$DMIStrategy) to update default DMI fields
@@ -161,259 +156,148 @@ server <- shinyServer(function(input, output, session){
   # "Link Motif classes to binding domains (ELMc-Domain)" = "elmcdom"),
   
   inputDataPPI <-eventReactive(input$run, {
-    return(loadPPIData(input))
+    #return(loadPPIData(input))
+    if(adata$data$loads$PPI < input$run){
+      adata$data$loads$PPI = input$run
+      adata$data$FullPPI = loadPPIData(input)
+      adata$data$PPI = unique(parsePPIData(input,adata$data$FullPPI))
+    }
+    return(adata$data$PPI)
   })
   
   ### Making the "Motif" table (mProtein-Motif)
   inputDataMotif <-eventReactive(input$run, {
-    return(loadDataMotif(input))
-    # #File upload check
-    # MotifFile<-input$Motif
-    # if(input$SLiMrunid){
-    #   Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
-    #   motfield = "Motif"
-    #   protfield = "AccNum"
-    # }
-    # else{
-    #   # Check whether file loaded
-    #   if(is.null(MotifFile)){
-    #     fname <- "data/known.occ.csv"
-    #   }else{
-    #     fname <- MotifFile$datapath
-    #   }
-    #   # Check whether csv or tdt
-    #   if(substr(fname,nchar(fname)-2,nchar(fname)) %in% c("csv","CSV")){
-    #     Motif<-read.csv(fname,header=TRUE,sep=",")
-    #   }else{
-    #     Motif<-read.csv(fname,header=TRUE,sep="\t")
-    #   }
-    #   # Select mProtein and Motif IDs
-    #   # This will have input$motifmprotein and input$motifmotif text boxes 
-    #   if(input$motifmprotein %in% colnames(Motif)){
-    #     protfield = input$motifmprotein
-    #   }else{
-    #     protfield = "mProtein"
-    #   }
-    #   if(input$motifmotif %in% colnames(Motif)){
-    #     motfield = input$motifmotif
-    #   }else{
-    #     motfield = "Motif"
-    #   }
-    # }
-    # # NOTE: For direction dProtein links, this table will be replaced by duplicated DMI table fields
-    # # Pull out required columns dependent on strategy
-    # if(input$DMIStrategy %in% c("elmiprot")){
-    #   # Direct protein links will use protein IDs from DMI file as domain IDs
-    #   Motif <- inputDataMotifDomain()
-    #   Motif <- Motif[,c("Motif","Motif")]
-    # }else{
-    #   Motif <- Motif[,c(protfield,motfield)]
-    # }
-    # colnames(Motif) <- c("mProtein","Motif")
-    # Motif
+    #return(loadDataMotif(input))
+    if(adata$data$loads$Motifs < input$run){
+      adata$data$loads$Motifs = input$run
+      adata$data$FullMotifs = loadDataMotif(input)
+      adata$data$Motifs = unique(parseDataMotif(input,adata$data$FullMotifs))
+    }
+    return(adata$data$Motifs)
   })
-  
   
   ### Making the "Domain" table (Domain-dProtein)
   inputDatadomain <-eventReactive(input$run, {
-    return(loadDatadomain(input))
-    
-    DomainFile<-input$domain
-    # Check whether file loaded
-    if(is.null(DomainFile)){
-      fname <- "data/domain.csv"
-    }else{
-      fname <- DomainFile$datapath
+    #return(loadDatadomain(input))
+    if(adata$data$loads$Domains < input$run){
+      adata$data$loads$Domains = input$run
+      adata$data$FullDomains = loadDatadomain(input)
+      adata$data$Domains = unique(parseDatadomain(input,adata$data$FullDomains))
     }
-    # Check whether csv or tdt
-    if(substr(fname,nchar(fname)-2,nchar(fname)) %in% c("csv","CSV")){
-      dProtein<-read.csv(fname,header=TRUE,sep=",")
-    }else{
-      dProtein<-read.csv(fname,header=TRUE,sep="\t")
-    }  
-    # Select Domain and dProtein IDs
-    # This will have input$domaindomain and input$domaindprotein text boxes 
-    if(input$domaindomain %in% colnames(dProtein)){
-      domfield = input$domaindomain
-    }else{
-      domfield = "Domain"
-    }
-    if(input$domaindprotein %in% colnames(dProtein)){
-      protfield = input$domaindprotein
-    }else{
-      protfield = "dProtein"
-    }
-    
-    # NOTE: For direction dProtein links, this table will be replaced by duplicated DMI table fields
-    # Pull out required columns dependent on strategy
-    if(input$DMIStrategy %in% c("elmiprot","elmcprot")){
-      # Direct protein links will use protein IDs from DMI file as domain IDs
-      dProtein <- inputDataMotifDomain()
-      dProtein <- dProtein[,c("Domain","Domain")]
-    }else{
-      dProtein <- dProtein[,c(domfield,protfield)]
-    }
-    colnames(dProtein) <- c("Domain","dProtein")
-    dProtein
+    return(adata$data$Domains)
   })
-  
   
   ### Making the "DMI" table (Motif-Domain)
   inputDataMotifDomain <-eventReactive(input$run, {
-    return(loadDataMotifDomain(input))
-    MotifDomainFile<-input$MotifDomain
-    
-    # Choose which file to use for DMI data
-    # Default strategy is elmc-protein
-    fname <- "data/elm_interactions.tsv"
-    # Elm	Domain	interactorElm	interactorDomain	StartElm	StopElm	StartDomain	StopDomain	AffinityMin	AffinityMax	PMID	taxonomyElm	taxonomyDomain	
-    # CLV_Separin_Fungi	PF03568	Q12158	Q03018	175	181	1171	1571	None	None	10403247,14585836	"559292"(Saccharomyces cerevisiae S288c)	"559292"(Saccharomyces cerevisiae S288c)
-    if(input$DMIStrategy == c("elmcdom")){
-      fname <- "data/motif-domain.tsv"
+    if(adata$data$loads$DMI < input$run){
+      adata$data$loads$DMI = input$run
+      adata$data$FullDMI = loadDataMotifDomain(input)
+      adata$data$DMI = unique(parseDataMotifDomain(input,adata$data$FullDMI))
     }
-    # "ELMidentifier"	"InteractionDomainId"	"Interaction Domain Description"	"Interaction Domain Name"
-    #  "CLV_NRD_NRD_1"	"PF00675"	"Peptidase_M16"	"Insulinase (Peptidase family M16)"  
-    # Check whether file loaded - over-rides default
-    if(! is.null(MotifDomainFile)){
-      fname <- MotifDomainFile$datapath
-    }
-    writeLines(fname)
-    
-    # Check whether csv or tdt
-    if(substr(fname,nchar(fname)-2,nchar(fname)) %in% c("csv","CSV")){
-      Domain<-read.csv(fname,header=TRUE,sep=",")
-    }else{
-      Domain<-read.csv(fname,header=TRUE,sep="\t")
-    }  
-    writeLines(paste(colnames(Domain)))
-    
-    # Select Motif and Domain IDs
-    # This will have input$dmimotif and input$dmidomain text boxes 
-    if(input$dmimotif %in% colnames(Domain)){
-      motfield = input$dmimotif
-    }else{
-      motfield = "Motif"
-    }
-    if(input$dmidomain %in% colnames(Domain)){
-      domfield = input$dmidomain
-    }else{
-      domfield = "Domain"
-    }
-    Domain <- Domain[,c(motfield,domfield)]
-    colnames(Domain) <- c("Motif","Domain")
-    Domain
+    return(adata$data$DMI)
   })
   
   #########################################################
-  
-  #shows the data table
-  output$udata<-renderDataTable({
-    inputDataMotif()
-    
-    
-  },
-  caption = tags$h4(tags$strong("SLiM File"))
-  )
+  #Displaying Data Tables
+  ####################################################
+  # PPI Table display
   output$udata2<-renderDataTable({
-    
     inputDataPPI()
-    
+    if(input$parseddata){
+      adata$data$PPI
+    }else{
+      adata$data$FullPPI
+    }
   },
   caption = tags$h4(tags$strong("Interaction File"))
   )
-  output$udata3<-renderDataTable({
-    DomainFile<-input$domain
-    if(is.null(DomainFile)){
-      inputDatadomain()
+  # DMI Table display
+  output$udata4<-renderDataTable({
+    inputDataMotifDomain()
+    if(input$parseddata){
+      adata$data$DMI
+    }else{
+      adata$data$FullDMI
     }
-    else{
-      inputDatadomain()
+  },
+  caption = tags$h4(tags$strong("Motif-Domain File"))
+  )
+  # Motifs Table display 
+  output$udata<-renderDataTable({
+    inputDataMotif()
+    if(input$parseddata){
+      adata$data$Motifs
+    }else{
+      adata$data$FullMotifs
+    }
+  },
+  caption = tags$h4(tags$strong("SLiM File"))
+  )
+  # Domains Table display 
+  output$udata3<-renderDataTable({
+    inputDatadomain()
+    if(input$parseddata){
+      adata$data$Domains
+    }else{
+      adata$data$FullDomains
     }
   },
   caption = tags$h4(tags$strong("Domain File"))
-  )
-  output$udata4<-renderDataTable({
-    MotifDomainFile<-input$MotifDomain
-    if(is.null(MotifDomainFile)){
-      inputDataMotifDomain()
-    }
-    else{
-      inputDataMotifDomain()
-    }
-    
-  },
-  caption = tags$h4(tags$strong("Motif-Domain File"))
   )
   #*************************************************************************************
   #Step 1: Potential DMIs
   ####################################################
   potentialDMIs <-eventReactive(input$run, {
-    #i# This needs a copy of the Run button code to load file contents
-    
     #i# DMI Strategies: input$DMIStrategy
     # "Link mProteins directly to dProteins (ELMi-Protein)" = "elmiprot", 
     # "Link Motif classes directly to dProteins (ELMc-Protein)" = "elmcprot",
     # "Link Motif classes to binding domains (ELMc-Domain)" = "elmcdom"),
-    
-    Domain <- loadDataMotifDomain(input)
-    dProtein <- loadDatadomain(input)
-    Motif <- loadDataMotif(input)
-    #PPI2 <- loadPPIData(input)
-    
-    #knowninter <- read.csv("data/elm_interactions.tsv", header = TRUE, sep = "\t")[1:4]
-    #head(knowninter)
-    #names(knowninter) <- c("Motif", "Domain", "mProtein", "dProtein")
-    #Motif <- lowername(Motif)
-    #Motif <- Motif[, c("accnum","motif")]
-    #names(Motif) <- c("UniprotID","Motif")
-    Motif_NR<-unique(Motif)
-    
-    #Join/Merge two files based on Motif
-    Join <- merge(Motif_NR, Domain, by="Motif")
-    #Domain-dProtein Mapping
-    #Load results from the previous code)
-    #joined both files based on domain
-    DMI <- merge(Join, dProtein,by="Domain")
-    #Filtered unique DMIs
-    Uni_DMI <- unique(DMI)
-    #Named the header of output file
-    Uni_DMI <- Uni_DMI[, c("mProtein","Motif", "Domain", "dProtein")]
-    print(Uni_DMI)
-    
+    # NOTE: The inputData functions now return unique two-field data tables
+    writeLines("Potential DMI")
+    if(adata$data$loads$Calculate < input$run){
+      withProgress(message = 'Potential DMI', detail = "(DMI)", value = 0, {
+        Domain <- inputDataMotifDomain()
+        incProgress(0.2, detail = "(Domains)")
+        dProtein <- inputDatadomain()
+        incProgress(0.2, detail = "(Motifs)")
+        Motif_NR <- inputDataMotif()
+        #Join/Merge two files based on Motif
+        incProgress(0.2, detail = "(Joining data)")
+        Join <- merge(Motif_NR, Domain, by="Motif")
+        #Domain-dProtein Mapping
+        #joined both files based on domain
+        incProgress(0.2, detail = "(Joining data)")
+        DMI <- merge(Join, dProtein,by="Domain")
+        #Filtered unique DMIs
+        incProgress(0.2, detail = "(Filtering data)")
+        Uni_DMI <- unique(DMI)
+        #Named the header of output file
+        Uni_DMI <- Uni_DMI[, c("mProtein","Motif", "Domain", "dProtein")]
+        print(head(Uni_DMI))
+        adata$data$potentialDMI = Uni_DMI
+        adata$data$potentialDMINR = unique(Uni_DMI[,c("mProtein","dProtein")])
+      })
+    }
+    return(adata$data$potentialDMI)
   })
   
   
   #shows the data table
   output$data<-DT::renderDataTable({
     #Run it only when run button is active
+    input$nrpotdmi
     if(input$run)
     {
       #Generates progress bar
       style <- isolate(input$style)
       
-      # Create a Progress object
-      progress <- shiny::Progress$new(style = style)
-      progress$set(message = "Generating Data", value = 0)
-      # Close the progress when this reactive exits (even if there's an error)
-      on.exit(progress$close())
-      
-      # Create a closure to update progress.
-      # Each time this is called:
-      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-      #   distance. If non-NULL, it will set the progress to that value.
-      # - It also accepts optional detail text.
-      updateProgress <- function(value = NULL, detail = NULL) {
-        if (is.null(value)) {
-          value <- progress$getValue()
-          value <- value + (progress$getMax() - value) / 5
-        }
-        progress$set(value = value, detail = "(Potential DMIs)")
+      if(input$nrpotdmi){
+        potDMI <- unique(potentialDMIs()[,c("mProtein","dProtein")])
+        print(head(potDMI))
+        formatStyle(datatable(potDMI), columns = 1:2, color = "black")
+      }else{
+        formatStyle(datatable(potentialDMIs()), columns = 1:4, color = "black")
       }
-      
-      # Compute the new data, and pass in the updateProgress function so
-      # that it can update the progress indicator.
-      compute_data(updateProgress)
-      formatStyle(datatable(potentialDMIs()), columns = 1:4, color = "black")
     }
     
   })
@@ -422,68 +306,47 @@ server <- shinyServer(function(input, output, session){
   #Step 2: Predicted DMIs
   ####################################################
   predictedDMIs <-eventReactive(input$run, {
-    predDMIs <- generatePredictedDMIs(input)
-    return(predDMIs)
-    Domain <- loadDataMotifDomain(input)
-    dProtein <- loadDatadomain(input)
-    Motif <- loadDataMotif(input)
-    PPI2 <- loadPPIData(input)
-    
-    Motif_NR<-unique(Motif)
-    
-    #Join/Merge two files based on Motif
-    Join <- merge( Motif_NR, Domain, by="Motif")
-    #print(Join)
-    #joined both files based on Domains
-    DMI <- merge(Join, dProtein,by="Domain")
-    #Filtered unique DMIs
-    Uni_DMI <- unique(DMI)
-    #print(Uni_DMI)
-    
-    #PPI-DMI Mapping
-    ########################################################################
-    #names(PPI2) <- c("mProtein", "dProtein")
-    predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-    Uni_predDMIs <- unique(predDMI)
-    #names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
-    predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-    print(predDMIs)
-    
+    writeLines("Predicting DMIs")
+    if(adata$data$loads$Calculate < input$run){
+      withProgress(message = 'Predicted DMI', detail = "(PPI)", value = 0, {
+        PPI2 <- inputDataPPI()
+        incProgress(0.25, detail = "(Potential DMI)")
+        Uni_DMI <- potentialDMIs()
+        #PPI-DMI Mapping
+        ########################################################################
+        #names(PPI2) <- c("mProtein", "dProtein")
+        incProgress(0.25, detail = "(Merge DMI & PPI)")
+        predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
+        Uni_predDMIs <- unique(predDMI)
+        #names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
+        predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
+        adata$data$predDMI = predDMIs
+        adata$data$predDMINR = unique(predDMIs[,c("mProtein","dProtein")])
+        incProgress(0.5, detail = "(Complete)")
+      })
+    }
+    predDMIs <- adata$data$predDMI
+    print(head(predDMIs))
     return(predDMIs)
   })
   
   #Shows predicted DMIs in DataTable
   output$PredDMIs<-DT::renderDataTable({
     #Run only if Run button is active
+    input$nrdmi
     if(input$run){
-      #Progress bar
       style <- isolate(input$style)
       
-      # Create a Progress object
-      progress <- shiny::Progress$new(style = style)
-      progress$set(message = "Generating Data", value = 0)
-      # Close the progress when this reactive exits (even if there's an error)
-      on.exit(progress$close())
-      
-      # Create a closure to update progress.
-      # Each time this is called:
-      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-      #   distance. If non-NULL, it will set the progress to that value.
-      # - It also accepts optional detail text.
-      updateProgress <- function(value = NULL, detail = NULL) {
-        if (is.null(value)) {
-          value <- progress$getValue()
-          value <- value + (progress$getMax() - value) / 5
-        }
-        progress$set(value = value, detail = "(Predicted DMIs)")
+      if(input$nrdmi){
+        NRpredDMI <- predictedDMIs()
+        print(head(NRpredDMI))
+        NRpredDMI <- unique(NRpredDMI[,c("mProtein","dProtein")])
+        print(head(NRpredDMI))
+        formatStyle(datatable(NRpredDMI), columns = 1:2, color = "black")
+        
+      }else{
+        formatStyle(datatable(predictedDMIs()), columns = 1:4, color = "black")
       }
-      
-      # Compute the new data, and pass in the updateProgress function so
-      # that it can update the progress indicator.
-      compute_data(updateProgress)
-      
-      
-      formatStyle(datatable(predictedDMIs()), columns = 1:4, color = "black")
     }
   })
   #*************************************************************************************
@@ -491,29 +354,7 @@ server <- shinyServer(function(input, output, session){
   #Step 3: Statistics
   ####################################################
   summaryStat <- eventReactive(input$run, {
-    # Domain <- loadDataMotifDomain(input)
-    # dProtein <- loadDatadomain(input)
-    # Motif <- loadDataMotif(input)
-    # PPI2 <- loadPPIData(input)
-    # Motif_NR<-unique(Motif)
-    # 
-    # #Join/Merge two files based on Motif
-    # Join <- merge( Motif_NR, Domain, by="Motif")
-    # #print(Join)
-    # #joined both files based on Domains
-    # DMI <- merge(Join, dProtein,by="Domain")
-    # #Filtered unique DMIs
-    # Uni_DMI <- unique(DMI)
-    # #print(Uni_DMI)
-    # 
-    # #PPI-DMI Mapping
-    # ########################################################################
-    # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-    # Uni_predDMIs <- unique(predDMI)
-    # predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-    # print(predDMIs)
-    
-    predDMI <- generatePredictedDMIs(input)
+    predDMI <- predictedDMIs()
     
     colors=c("cadetblue1", "deepskyblue2", "blue", "darkblue")
     #Select unique Motif
@@ -555,28 +396,6 @@ server <- shinyServer(function(input, output, session){
     if(input$run){
       style <- isolate(input$style)
       
-      # Create a Progress object
-      progress <- shiny::Progress$new(style = style)
-      progress$set(message ="Creating plot", value = 0)
-      # Close the progress when this reactive exits (even if there's an error)
-      on.exit(progress$close())
-      
-      # Create a closure to update progress.
-      # Each time this is called:
-      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-      #   distance. If non-NULL, it will set the progress to that value.
-      # - It also accepts optional detail text.
-      updateProgress <- function(value = NULL, detail = NULL) {
-        if (is.null(value)) {
-          value <- progress$getValue()
-          value <- value + (progress$getMax() - value) / 5
-        }
-        progress$set(value = value, detail = "(Summary bar chart)")
-      }
-      
-      # Compute the new data, and pass in the updateProgress function so
-      # that it can update the progress indicator.
-      compute_data(updateProgress)
       summaryStat()
     }
   })
@@ -584,60 +403,6 @@ server <- shinyServer(function(input, output, session){
   #####################################################
   #*************************************************************************************
   disELMs <- eventReactive(input$run, {
-    #File upload check
-    # MotifFile<-input$Motif
-    # if(input$SLiMrunid){
-    #   Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
-    # }
-    # else{
-    #   if(is.null(MotifFile)){
-    #     if(input$withPro =="pmi"){
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     } else{
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     }
-    #   }
-    #   
-    #   else{
-    #     Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    #   }
-    # }
-    # PPIFile<-input$PPI
-    # if(is.null(PPIFile)){
-    #   PPI2<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
-    # }
-    # 
-    # else{
-    #   PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
-    # }
-    # #File upload check
-    # DomainFile<-input$domain
-    # if(is.null(DomainFile)){
-    #   dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # 
-    # else{
-    #   dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # MotifDomainFile<-input$MotifDomain
-    # if(is.null(MotifDomainFile)){
-    #   Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    #   
-    # }
-    # else{
-    #   Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    # }
-    # knowninter <- read.csv("data/elm_interactions.tsv", header = TRUE, sep = "\t")[1:4]
-    # head(knowninter)
-    # names(knowninter) <- c("Motif", "Domain", "mProtein", "dProtein")
     #Read uploaded files
     GOterms <- read.csv("data/elm_goterms.tsv",header=TRUE,sep="\t")
     names(GOterms) <- c("ELM", "GO Term", "Biological Function")
@@ -666,7 +431,8 @@ server <- shinyServer(function(input, output, session){
     # names(PPI2) <- c("mProtein", "dProtein")
     # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
     
-    predDMIs <- generatePredictedDMIs(input)
+    predDMIs <- predictedDMIs() # generatePredictedDMIs(input,adata$data)
+    print(head(predDMIs))
     predDMI = predDMIs
     
     Uni_predDMIs <- unique(predDMI)
@@ -690,127 +456,34 @@ server <- shinyServer(function(input, output, session){
     Frequency <- df_pred2$Freq
     ELMs_names <- df_pred2$ELM
     df_pred2 <- data.frame(ELMs_names,Frequency)
-    pvalueelm <- round(df_pred2$Frequency/nrow(df_pred),2)
-    pvaluecol <- cbind(df_pred2,pvalueelm)
-    names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
-    GeneOntology <- merge(pvaluecol,GOterms, by="ELM")
-    GeneOntology
+    #!# This is not a pvalue! (No idea what it is)
+    # pvalueelm <- round(df_pred2$Frequency/nrow(df_pred),2)
+    # pvaluecol <- cbind(df_pred2,pvalueelm)
+    propelm <- round(df_pred2$Frequency/sum(df_pred2$Frequency),2)
+    propcol <- cbind(df_pred2,propelm)
+    names(propcol) <- c("Motif", "Frequency", "Proportion")
+    # if(input$DMIStrategy == c("elmcdom","elmcprot")){
+    #   #!# Make and add GO toggle? Doesn't seem to work
+    #   names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
+    #   GeneOntology <- merge(pvaluecol,GOterms, by="ELM")
+    #   return(GeneOntology)
+    # }else{
+    #   return(pvaluecol)
+    # }
+    return(propcol)
   })
   
   output$diselmsdata <-DT::renderDataTable({
     #Run only if Run button is active
     if(input$run){
-      #Progress bar
       style <- isolate(input$style)
-      
-      # Create a Progress object
-      progress <- shiny::Progress$new(style = style)
-      progress$set(message = "Generating Data", value = 0)
-      # Close the progress when this reactive exits (even if there's an error)
-      on.exit(progress$close())
-      
-      # Create a closure to update progress.
-      # Each time this is called:
-      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-      #   distance. If non-NULL, it will set the progress to that value.
-      # - It also accepts optional detail text.
-      updateProgress <- function(value = NULL, detail = NULL) {
-        if (is.null(value)) {
-          value <- progress$getValue()
-          value <- value + (progress$getMax() - value) / 5
-        }
-        progress$set(value = value, detail = "ELM distribution")
-      }
-      
-      # Compute the new data, and pass in the updateProgress function so
-      # that it can update the progress indicator.
-      compute_data(updateProgress)
-      
       disELMs()
       
     }
   })
   displotfunc <- function(){
-    #File upload check
-    # MotifFile<-input$Motif
-    # if(input$SLiMrunid){
-    #   Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
-    # }
-    # else{
-    #   if(is.null(MotifFile)){
-    #     if(input$withPro =="pmi"){
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     } else{
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     }
-    #   }
-    #   
-    #   else{
-    #     Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    #   }
-    # }
-    # PPIFile<-input$PPI
-    # if(is.null(PPIFile)){
-    #   PPI2<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
-    # }
-    # 
-    # else{
-    #   PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
-    # }
-    # #File upload check
-    # DomainFile<-input$domain
-    # if(is.null(DomainFile)){
-    #   dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # 
-    # else{
-    #   dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # MotifDomainFile<-input$MotifDomain
-    # if(is.null(MotifDomainFile)){
-    #   Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    #   
-    # }
-    # else{
-    #   Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    # }
-    # knowninter <- read.csv("data/elm_interactions.tsv", header = TRUE, sep = "\t")[1:4]
-    # head(knowninter)
-    # names(knowninter) <- c("Motif", "Domain", "mProtein", "dProtein")
-    # Motif <- lowername(Motif)
-    # Motif <- Motif[, c("accnum","motif")]
-    # names(Motif) <- c("UniprotID","Motif")
-    # Motif_NR<-unique(Motif)
-    # #Rename the columns in two files
-    # names( Motif_NR) <- c("mProtein", "Motif")
-    # names(Domain) <- c("Motif", "Domain")
-    # 
-    # #Join/Merge two files based on Motif
-    # Join <- merge( Motif_NR, Domain, by="Motif")
-    # #print(Join)
-    # names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
-    # #Load mProtein_Motif_Domain file (result file from the previous code)
-    # names(dProtein) <- c("Domains", "dProteins")
-    # #joined both files based on Domains
-    # DMI <- merge(Join, dProtein,by="Domains")
-    # #Filtered unique DMIs
-    # Uni_DMI <- unique(DMI)
-    # #Named the header of output file
-    # names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
-    # #PPI-DMI Mapping
-    # ########################################################################
-    # names(PPI2) <- c("mProtein", "dProtein")
-    # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-    # 
-    predDMIs <- generatePredictedDMIs(input)
+    predDMI <- predictedDMIs()  # generatePredictedDMIs(input,adata$data)
+    predDMIs = predDMI
     
     Uni_predDMIs <- unique(predDMI)
     names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
@@ -852,29 +525,6 @@ server <- shinyServer(function(input, output, session){
     if(input$godis){
       #Progress bar
       style <- isolate(input$style)
-      
-      # Create a Progress object
-      progress <- shiny::Progress$new(style = style)
-      progress$set(message = "Generating Chart", value = 0)
-      # Close the progress when this reactive exits (even if there's an error)
-      on.exit(progress$close())
-      
-      # Create a closure to update progress.
-      # Each time this is called:
-      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-      #   distance. If non-NULL, it will set the progress to that value.
-      # - It also accepts optional detail text.
-      updateProgress <- function(value = NULL, detail = NULL) {
-        if (is.null(value)) {
-          value <- progress$getValue()
-          value <- value + (progress$getMax() - value) / 5
-        }
-        progress$set(value = value, detail = "Generating interactive view")
-      }
-      
-      # Compute the new data, and pass in the updateProgress function so
-      # that it can update the progress indicator.
-      compute_data(updateProgress)
       displotfunc()
     }
   })
@@ -882,87 +532,8 @@ server <- shinyServer(function(input, output, session){
   #####################################################
   #*************************************************************************************
   disDom <- eventReactive(input$run, {
-    #File upload check
-    # MotifFile<-input$Motif
-    # if(input$SLiMrunid){
-    #   Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
-    # }
-    # else{
-    #   if(is.null(MotifFile)){
-    #     if(input$withPro =="pmi"){
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     } else{
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     }
-    #   }
-    #   
-    #   else{
-    #     Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    #   }
-    # }
-    # PPIFile<-input$PPI
-    # if(is.null(PPIFile)){
-    #   PPI2<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
-    # }
-    # 
-    # else{
-    #   PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
-    # }
-    # #File upload check
-    # DomainFile<-input$domain
-    # if(is.null(DomainFile)){
-    #   dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # 
-    # else{
-    #   dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # MotifDomainFile<-input$MotifDomain
-    # if(is.null(MotifDomainFile)){
-    #   Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    #   
-    # }
-    # else{
-    #   Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    # }
-    # knowninter <- read.csv("data/elm_interactions.tsv", header = TRUE, sep = "\t")[1:4]
-    # head(knowninter)
-    # names(knowninter) <- c("Motif", "Domain", "mProtein", "dProtein")
-    # 
-    # Motif <- lowername(Motif)
-    # Motif <- Motif[, c("accnum","motif")]
-    # names(Motif) <- c("UniprotID","Motif")
-    # Motif_NR<-unique(Motif)
-    # #Rename the columns in two files
-    # names( Motif_NR) <- c("Seq", "Motif")
-    # names(Domain) <- c("Motif", "Domain")
-    # 
-    # #Join/Merge two files based on Motif
-    # Join <- merge( Motif_NR, Domain, by="Motif")
-    # #print(Join)
-    # names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
-    # #Load mProtein_Motif_Domain file (result file from the previous code)
-    # names(dProtein) <- c("Domains", "dProteins")
-    # #joined both files based on Domains
-    # DMI <- merge(Join, dProtein,by="Domains")
-    # #Filtered unique DMIs
-    # Uni_DMI <- unique(DMI)
-    # #Named the header of output file
-    # names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
-    # #PPI-DMI Mapping
-    # ########################################################################
-    # names(PPI2) <- c("mProtein", "dProtein")
-    # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
     
-    predDMIs <- generatePredictedDMIs(input)
+    predDMIs <- predictedDMIs()  # generatePredictedDMIs(input,adata$data)
     predDMI = predDMIs
     Uni_predDMIs <- unique(predDMI)
     names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
@@ -985,10 +556,13 @@ server <- shinyServer(function(input, output, session){
     Frequency <- df_pred2$Freq
     ELMs_names <- df_pred2$Domain
     df_pred2 <- data.frame(ELMs_names,Frequency)
-    pvalueelm <- round(df_pred2$Frequency/nrow(df_pred),2)
-    pvaluecol <- cbind(df_pred2,pvalueelm)
-    names(pvaluecol) <- c("Domain", "Frequency", "Pvalue")
-    pvaluecol
+    #pvalueelm <- round(df_pred2$Frequency/nrow(df_pred),2)
+    #pvaluecol <- cbind(df_pred2,pvalueelm)
+    propelm <- round(df_pred2$Frequency/sum(df_pred2$Frequency),2)
+    propcol <- cbind(df_pred2,propelm)
+    names(propcol) <- c("Domain", "Frequency", "Proportion")
+    #names(pvaluecol) <- c("Domain", "Frequency", "Pvalue")
+    propcol
     
   })
   
@@ -997,115 +571,13 @@ server <- shinyServer(function(input, output, session){
     if(input$run){
       #Progress bar
       style <- isolate(input$style)
-      
-      # Create a Progress object
-      progress <- shiny::Progress$new(style = style)
-      progress$set(message = "Generating Data", value = 0)
-      # Close the progress when this reactive exits (even if there's an error)
-      on.exit(progress$close())
-      
-      # Create a closure to update progress.
-      # Each time this is called:
-      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-      #   distance. If non-NULL, it will set the progress to that value.
-      # - It also accepts optional detail text.
-      updateProgress <- function(value = NULL, detail = NULL) {
-        if (is.null(value)) {
-          value <- progress$getValue()
-          value <- value + (progress$getMax() - value) / 5
-        }
-        progress$set(value = value, detail = "Domain distribution")
-      }
-      
-      # Compute the new data, and pass in the updateProgress function so
-      # that it can update the progress indicator.
-      compute_data(updateProgress)
-      
       disDom()
       
     }
   })
   disdomplotfunc <- function(){
-    #File upload check
-    # MotifFile<-input$Motif
-    # if(input$SLiMrunid){
-    #   Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
-    # }
-    # else{
-    #   if(is.null(MotifFile)){
-    #     if(input$withPro =="pmi"){
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     } else{
-    #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-    #     }
-    #   }
-    #   
-    #   else{
-    #     Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-    #   }
-    # }
-    # PPIFile<-input$PPI
-    # if(is.null(PPIFile)){
-    #   PPI2<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
-    # }
-    # 
-    # else{
-    #   PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
-    # }
-    # #File upload check
-    # DomainFile<-input$domain
-    # if(is.null(DomainFile)){
-    #   dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # 
-    # else{
-    #   dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
-    #   dProtein <- lowername(dProtein)
-    #   dProtein <- dProtein[,c("pfam","accnum")]
-    # }
-    # MotifDomainFile<-input$MotifDomain
-    # if(is.null(MotifDomainFile)){
-    #   Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    #   
-    # }
-    # else{
-    #   Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
-    #   Domain <- lowername(Domain)
-    #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-    # }
-    # knowninter <- read.csv("data/elm_interactions.tsv", header = TRUE, sep = "\t")[1:4]
-    # head(knowninter)
-    # names(knowninter) <- c("Motif", "Domain", "mProtein", "dProtein")
-    # Motif <- lowername(Motif)
-    # Motif <- Motif[, c("accnum","motif")]
-    # names(Motif) <- c("UniprotID","Motif")
-    # Motif_NR<-unique(Motif)
-    # #Rename the columns in two files
-    # names( Motif_NR) <- c("Seq", "Motif")
-    # names(Domain) <- c("Motif", "Domain")
-    # 
-    # #Join/Merge two files based on Motif
-    # Join <- merge( Motif_NR, Domain, by="Motif")
-    # #print(Join)
-    # names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
-    # #Load mProtein_Motif_Domain file (result file from the previous code)
-    # names(dProtein) <- c("Domains", "dProteins")
-    # #joined both files based on Domains
-    # DMI <- merge(Join, dProtein,by="Domains")
-    # #Filtered unique DMIs
-    # Uni_DMI <- unique(DMI)
-    # #Named the header of output file
-    # names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
-    # #PPI-DMI Mapping
-    # ########################################################################
-    # names(PPI2) <- c("mProtein", "dProtein")
-    # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-    # 
-    predDMIs <- generatePredictedDMIs(input)
+    predDMIs <- predictedDMIs()  #generatePredictedDMIs(input,adata$data)
+    predDMI = predDMIs
     
     Uni_predDMIs <- unique(predDMI)
     names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
@@ -1149,29 +621,6 @@ server <- shinyServer(function(input, output, session){
     if(input$godisd){
       #Progress bar
       style <- isolate(input$style)
-      
-      # Create a Progress object
-      progress <- shiny::Progress$new(style = style)
-      progress$set(message = "Generating Chart", value = 0)
-      # Close the progress when this reactive exits (even if there's an error)
-      on.exit(progress$close())
-      
-      # Create a closure to update progress.
-      # Each time this is called:
-      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-      #   distance. If non-NULL, it will set the progress to that value.
-      # - It also accepts optional detail text.
-      updateProgress <- function(value = NULL, detail = NULL) {
-        if (is.null(value)) {
-          value <- progress$getValue()
-          value <- value + (progress$getMax() - value) / 5
-        }
-        progress$set(value = value, detail = "Generating interactive view")
-      }
-      
-      # Compute the new data, and pass in the updateProgress function so
-      # that it can update the progress indicator.
-      compute_data(updateProgress)
       disdomplotfunc()
     }
   })
@@ -1189,10 +638,10 @@ server <- shinyServer(function(input, output, session){
   #A file named randomNumbers will be generated in "RandomFiles" that will be used to generate Histogram later.
   ####################################################
   rPPIDMI <-reactive({
-    Domain <- loadDataMotifDomain(input)
-    dProtein <- loadDatadomain(input)
-    Motif <- loadDataMotif(input)
-    PPI <- loadPPIData(input)
+    Domain <- inputDataMotifDomain()
+    dProtein <- inputDatadomain()
+    Motif <- inputDataMotif()
+    PPI <- inputDataPPI()
     
     Motif_NR<-unique(Motif)
     
@@ -1219,7 +668,7 @@ server <- shinyServer(function(input, output, session){
     predDMIs <- unique(predDMI[, c("mProtein","dProtein")])
     
     
-    PPI <- loadPPIData(input)
+    PPI <- inputDataPPI()
     PPI_data <- unique(PPI)
     names(PPI_data) <- c("mProtein", "dProtein")
     PPI_Matrix<-matrix(data = PPI_data$mProtein)
@@ -1238,36 +687,43 @@ server <- shinyServer(function(input, output, session){
       }
       permutations
     }
-    showNotification("Performing the randomizations", type = "message", duration = 5)
+    showNotification("Performing the randomisations", type = "message", duration = 5)
     data <- list()
-    for (j in 1:1000) {
-      permutation<-PermutationFunction(PPI_Matrix, k = length(PPI_Matrix))
-      permutation2<-PermutationFunction(PPI_Matrix2, k = length(PPI_Matrix2))
-      final_file<- c(paste(permutation,permutation2, sep = ":"))
-      newCol1<-strsplit(as.character(final_file),':',fixed=TRUE)
-      df<-data.frame(final_file,do.call(rbind, newCol1))
-      subset = df[,c(2,3)]
-      names(subset)<-c("mProtein", "dProtein")
-      data[[j]] <- subset
-      #head(data[[j]])
-      #write.csv(perm, "rPPI.csv", row.names = FALSE)
-    }
+    withProgress(message = 'Performing randomisations', detail = 0, value = 0, {
+      for (j in 1:input$shufflenum) {
+        permutation<-PermutationFunction(PPI_Matrix, k = length(PPI_Matrix))
+        permutation2<-PermutationFunction(PPI_Matrix2, k = length(PPI_Matrix2))
+        final_file<- c(paste(permutation,permutation2, sep = ":"))
+        newCol1<-strsplit(as.character(final_file),':',fixed=TRUE)
+        df<-data.frame(final_file,do.call(rbind, newCol1))
+        subset = df[,c(2,3)]
+        names(subset)<-c("mProtein", "dProtein")
+        data[[j]] <- subset
+        #head(data[[j]])
+        #write.csv(perm, "rPPI.csv", row.names = FALSE)
+        incProgress(1/input$shufflenum, detail = j)
+      }
+    })
     #rPPI-DMI Mapping                                                               
     #################################################################################
-    showNotification("1000 random PPI files have been created", type = "message", duration = 5)
-    showNotification("Now predicing DMIs from the random PPI data", type = "message", closeButton = TRUE,duration = 15)
+    showNotification(paste(length(data),"random PPI datasets have been created"), type = "message", duration = 5)
+    showNotification("Now predicting DMIs from the random PPI data", type = "message", closeButton = TRUE,duration = 15)
     m <- data.frame()
-    for (i in 1:1000) {
-      rPPI <- data[[i]]
-      names(rPPI)<-c("mProtein", "dProtein")
-      DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
-      DMI_rPPI = unique(DMI_rPPI[,c("mProtein","dProtein")])
-      Matches <- nrow(DMI_rPPI)
-      print(Matches)
-      dmatch <- data.frame(Matches)
-      m=rbind(m,dmatch)
-      row.names(m) <- NULL
-    }
+    withProgress(message = 'Predicting random DMI', detail = 0, value = 0, {
+      for (i in 1:input$shufflenum) {
+        rPPI <- data[[i]]
+        names(rPPI)<-c("mProtein", "dProtein")
+        DMI_rPPI <- merge(Uni_DMI, rPPI, by= c("mProtein", "dProtein"))
+        DMI_rPPI <- unique(DMI_rPPI[,c("mProtein", "dProtein")])
+        Matches <- nrow(DMI_rPPI)
+        if(devmode){ print(Matches) }
+        dmatch <- data.frame(Matches)
+        m=rbind(m,dmatch)
+        row.names(m) <- NULL
+        incProgress(1/input$shufflenum, detail = i)
+      }
+    })
+    writeLines(paste("Predicted:",nrow(m)))
     m
   })
   #*************************************************************************************
@@ -1279,88 +735,78 @@ server <- shinyServer(function(input, output, session){
     
     if(input$run){
       style <- isolate(input$style)
-      
-      # Create a Progress object
-      progress <- shiny::Progress$new(style = style)
-      progress$set(message ="Creating Plot", value = 0)
-      # Close the progress when this reactive exits (even if there's an error)
-      on.exit(progress$close())
-      
-      # Create a closure to update progress.
-      # Each time this is called:
-      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-      #   distance. If non-NULL, it will set the progress to that value.
-      # - It also accepts optional detail text.
-      updateProgress <- function(value = NULL, detail = NULL) {
-        if (is.null(value)) {
-          value <- progress$getValue()
-          value <- value + (progress$getMax() - value) / 5
-        }
-        progress$set(value = value, detail = "This may take a while!!. Nothing will respond while it's being calculated (e.g. network)")
-      }
-      
-      # Compute the new data, and pass in the updateProgress function so
-      # that it can update the progress indicator.
-      compute_data(updateProgress)
+      showNotification("Creating plot - this may take a while! Nothing will respond while it's being calculated (e.g. network tab)", type = "warning", duration = NULL, id="plotwarning")    
+      #withProgress(message = 'Creating Plot', detail = "This may take a while!!. Nothing will respond while it's being calculated (e.g. network tab)", value = 0, {
       rPPIDMI()
       plotInput()
+      removeNotification("plotwarning")
     }
-    
   })
   #Function to generate Histogram
   plotInput <- function(){
     #File upload check
-    Domain <- loadDataMotifDomain(input)
-    dProtein <- loadDatadomain(input)
-    Motif <- loadDataMotif(input)
-    PPI <- loadPPIData(input)
+    Domain <- inputDataMotifDomain()
+    dProtein <- inputDatadomain()
+    Motif <- inputDataMotif()
+    PPI <- inputDataPPI()
     
     #dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
     x <- rPPIDMI()
-    names(x) <- "values"
-    bins<- seq(min(x), max(x), length.out = input$bins + 1)
-    par(bg=input$col2)
-    h<- hist(x$values, breaks=bins, col = input$col, border = 'black', main=input$text3, ylab=input$text2,
-             xlab=input$text, xlim = c( input$xlimstart,  input$xlimend), labels = input$barlabel, cex.main=1.5, cex.lab=1.5,cex.axis=1.5)
-    xfit <- seq(min(x$values),max(x$values),length=40)
-    
-    yfit <- dnorm(xfit, mean=mean(x$values),sd=sd(x$values))
-    
-    
-    yfit<- yfit*diff(h$mids[1:2])*length(x$values)
-    
-    
-    lines(xfit,yfit)
-    
     predictedDMImutlilink = predictedDMIs()
     predDMIs = unique(predictedDMImutlilink[,c("mProtein","dProtein")])
     predDMInum = nrow(predDMIs)
     
-    ob_fdr <- x[x$values <= nrow(predDMIs), ]
+    names(x) <- "values"
+    #bins<- seq(min(x), max(x), length.out = input$bins + 1)
+    par(bg=input$col2)
+    xlimmax = max(c(input$xlimend,max(x)*1.1,predDMInum*1.1))
+    bins<- seq(0, xlimmax+input$binwidth, input$binwidth)
+    # if(max(bins) < xlimmax){
+    #   bins = c(bins,max(bins)+input$binwidth)
+    # }
+    #ymax = max(hist(x$values, breaks=bins, plot=FALSE)$counts) * 1.5   
+    h<- hist(x$values, breaks=bins, col = input$col, border = 'black', main=input$text3, ylab=input$text2,
+             xlab=input$text, xlim = c( input$xlimstart,  xlimmax), labels = input$barlabel, cex.main=1.5, cex.lab=1.5,cex.axis=1.5)
+
+    xfit <- seq(min(x$values),max(x$values),length=40)
+    yfit <- dnorm(xfit, mean=mean(x$values),sd=sd(x$values))
+    yfit<- yfit*diff(h$mids[1:2])*length(x$values)
+    lines(xfit,yfit)
+
+    ob_fdr <- x[x$values <= predDMInum, ]
     #axis(side=3, lwd = 0, lwd.ticks = 4, at=nrow(predDMIs), lend=1, labels = FALSE, tcl=5, font=2, col = "black", padj = 0, lty = 3)
     #shows the observed value
-    mtext(paste("Observed value is: ", predDMInum), side = 3, at=predDMInum, font = 4)
-    pvalue = length(x[x >= predDMInum])/1000
+    mtext(paste("Observed value: ", predDMInum), side = 3, at=predDMInum, font = 4)
+    pvalue = length(x[x >= predDMInum])/input$shufflenum
+    
+    pplace = xlimmax
+    if(predDMInum > xlimmax/2){ pplace = predDMInum/2 }
+    
     if(pvalue == 0){ 
-      mtext(paste0("P-value is: < ", 1/1000), side = 3, at=predDMInum+90, font = 4, col = "red")
-      pvalue <-  paste0("<b>P-value is: </b> < ", 1/1000)
+      mtext(paste0("P-value is: < ", 1/input$shufflenum), side = 3, at=pplace, font = 4, col = "red")
+      pvalue <-  paste0("<b>P-value: </b> < ", 1/input$shufflenum)
     }else{
-      mtext(paste0("P-value is: ", pvalue), side = 3, at=predDMInum+90, font = 4, col = "red")
-      pvalue <-  paste0("<b>P-value is: </b>", pvalue)
+      #mtext(paste0("P-value is: ", pvalue), side = 3, at=predDMInum+90, font = 4, col = "red")
+      mtext(paste0("P-value is: ", pvalue), side = 3, at=pplace, font = 4, col = "red")
+      pvalue <-  paste0("<b>P-value: </b>", pvalue)
     }
     #mtext(paste0("Mean is: ", mean(x$values)), side = 3, at=mean(x$values), font = 4, col="red")
     #mtext(paste0("FDR is: ", mean(x$values)/nrow(predDMIs)), side = 3, at=50, font = 4, col= "red")
     #points arrow on the observed value
     arrows(predDMInum, 480, predDMInum, 0, lwd = 2, col = "black", length = 0.1, lty = 3)
-    meanvalue <- paste0("<b>Mean is: </b>", round(mean(x$values)))
-    Escore <- paste0("<b>Enrichment score (E-score) is: </b>", round(predDMInum/mean(x$values),2))
-    FDR <- paste0("<b>False Discrovery Rate (FDR) is: </b>", round(mean(ob_fdr)/predDMInum,2))
+    obsval <- paste0("<b>Observed NR DMI: </b>", predDMInum)
+    obsdmi <- paste0("<b>Observed DMI (redundant): </b>", nrow(predictedDMImutlilink))
+    meanvalue <- paste0("<b>Mean random DMI: </b>", round(mean(x$values),2))
+    Escore <- paste0("<b>Enrichment score (E-score): </b>", round(predDMInum/mean(x$values),2))
+    FDR <- paste0("<b>False Discovery Rate (FDR): </b>", round(mean(ob_fdr)/predDMInum,2))
     output$summary <- renderUI({
       
-      HTML(paste("<font color=\"#FF0000\"><b>Summary of Histogram</b></font>", pvalue, meanvalue, Escore, FDR, sep = '<hr/>'))
+      HTML(paste("<font color=\"#FF0000\"><b>Summary of Histogram</b></font>", pvalue, obsdmi, obsval, meanvalue, Escore, FDR, sep = '<hr/>'))
       
     })
   }
+  
+  #?# What does this function actually do?!
   compute_data <- function(updateProgress = NULL) {
     # Create 0-row data frame which will be used to store data
     dat <- data.frame(x = numeric(0), y = numeric(0))
@@ -1398,225 +844,8 @@ server <- shinyServer(function(input, output, session){
     if(input$run){
       style <- isolate(input$style)
       
-      # Create a Progress object
-      progress <- shiny::Progress$new(style = style)
-      progress$set(message ="Creating Network", value = 0)
-      # Close the progress when this reactive exits (even if there's an error)
-      on.exit(progress$close())
-      
-      # Create a closure to update progress.
-      # Each time this is called:
-      # - If `value` is NULL, it will move the progress bar 1/5 of the remaining
-      #   distance. If non-NULL, it will set the progress to that value.
-      # - It also accepts optional detail text.
-      updateProgress <- function(value = NULL, detail = NULL) {
-        if (is.null(value)) {
-          value <- progress$getValue()
-          value <- value + (progress$getMax() - value) / 5
-        }
-        progress$set(value = value, detail = "")
-      }
-      
-      # Compute the new data, and pass in the updateProgress function so
-      # that it can update the progress indicator.
-      compute_data(updateProgress)
-      
-      #File upload check
-      # MotifFile<-input$Motif
-      # if(input$SLiMrunid){
-      #   Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
-      # }
-      # else{
-      #   if(is.null(MotifFile)){
-      #     if(input$withPro =="pmi"){
-      #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-      #     } else{
-      #       Motif<-read.csv("data/known.occ.csv",header=TRUE,sep=",")
-      #     }
-      #   }
-      #   
-      #   else{
-      #     Motif<-read.csv(MotifFile$datapath,header=TRUE,sep=",")
-      #   }
-      # }
-      # PPIFile<-input$PPI
-      # if(is.null(PPIFile)){
-      #   PPI2<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
-      # }
-      # 
-      # else{
-      #   PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
-      # }
-      # #File upload check
-      # DomainFile<-input$domain
-      # if(is.null(DomainFile)){
-      #   dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")
-      #   dProtein <- lowername(dProtein)
-      #   dProtein <- dProtein[,c("pfam","accnum")]
-      # }
-      # 
-      # else{
-      #   dProtein<-read.csv(DomainFile$datapath,header=TRUE,sep=",")
-      #   dProtein <- lowername(dProtein)
-      #   dProtein <- dProtein[,c("pfam","accnum")]
-      # }
-      # MotifDomainFile<-input$MotifDomain
-      # if(is.null(MotifDomainFile)){
-      #   Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")
-      #   Domain <- lowername(Domain)
-      #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-      #   
-      # }
-      # else{
-      #   Domain<-read.csv(MotifDomainFile$datapath,header=TRUE,sep="\t")
-      #   Domain <- lowername(Domain)
-      #   Domain <- Domain[, c("elmidentifier","interactiondomainid")]
-      # }
-      # knowninter <- read.csv("data/elm_interactions.tsv", header = TRUE, sep = "\t")[1:4]
-      # head(knowninter)
-      # names(knowninter) <- c("Motif", "Domain", "mProtein", "dProtein")
-      # #Read uploaded files
-      # Motif <- lowername(Motif)
-      # Motif <- Motif[, c("accnum","motif")]
-      
-      # Domain <- loadDataMotifDomain(input)
-      # dProtein <- loadDatadomain(input)
-      # Motif <- loadDataMotif(input)
-      # PPI2 <- loadPPIData(input)
-      # 
-      # names(Motif) <- c("UniprotID","Motif")
-      # 
-      # 
-      # Motif_NR<-unique(Motif)
-      # #Rename the columns in two files
-      # names(Motif_NR) <- c("mProtein", "Motif")
-      # names(Domain) <- c("Motif", "Domain")
-      
-      # if(input$withPro == "pmi"){
-      #   DMI <- merge(Motif_NR, knowninter, by=c("mProtein"))
-      #   Uni_DMI <- unique(DMI)
-      #   nrow(Uni_DMI)
-      #   Uni_DMI <- Uni_DMI[, c("mProtein","Motif.x", "dProtein")]
-      #   #Named the header of output file
-      #   names(Uni_DMI) <- c("mProtein","Motif", "dProtein")
-      #   Uni_DMI <- Uni_DMI[,c("mProtein", "Motif", "dProtein")]
-      #   print(Uni_DMI)
-      #   names(PPI2) <- c("mProtein", "dProtein")
-      #   predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-      #   Uni_predDMIs <- unique(predDMI)
-      #   #names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
-      #   predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "dProtein")]
-      #   print(predDMIs)
-      #   if(nrow(predDMIs) != 0){
-      #     #Network
-      #     
-      #     first <- predDMI[,c("mProtein","Motif")]
-      #     g <- graph.data.frame(first, directed = F)
-      #     #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-      #     V(g)$color <- ifelse(V(g)$name %in% predDMI[,1], "#A93226", "#F7DC6F")
-      #     V(g)$shape <- ifelse(V(g)$name %in% predDMI[,1], "square", "box")
-      #     
-      #     second <- predDMI[,c("Motif","dProtein")]
-      #     g2 <- graph.data.frame(second, directed = F)
-      #     #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-      #     V(g2)$color <- ifelse(V(g2)$name %in% predDMI[,2], "#85C1E9", "#85C1E9")
-      #     V(g2)$shape <- ifelse(V(g2)$name %in% predDMI[,2], "circle", "vrectangle")
-      #     
-      #     
-      #     #merge networks
-      #     g4 = graph.union(g,g2, byname = TRUE)
-      #     #g4 <- g %u% g2 %u% g3
-      #     g5 <- simplify(g4, remove.multiple = TRUE, remove.loops = TRUE)
-      #     #plot.igraph(g5, layout=layout.fruchterman.reingold)
-      #     V(g5)$color <- ifelse(is.na(V(g5)$color_1),
-      #                           V(g5)$color_2,V(g5)$color_1)
-      #     V(g5)$shape <- ifelse(is.na(V(g5)$shape_1),
-      #                           V(g5)$shape_2,V(g5)$shape_1)
-      #     E(g5)$color <- "black"
-      #     E(g)$width <- 9
-      #     g6 <- visIgraph(g5,layout = input$selectlayout, physics = FALSE, smooth = TRUE, type = "square")
-      #     #visExport(g6, type = "png", name = "export-network",float = "left", label = "Save network", background = "white", style= "")
-      #     
-      #   }
-      # } else if(input$withPro == "dmi"){
-      #   if(is.null(MotifFile) && is.null(DomainFile) && is.null(MotifDomainFile)){
-      #     names(PPI2) <- c("mProtein", "dProtein")
-      #     predDMI <- merge(PPI2, knowninter, by= c("mProtein", "dProtein"))
-      #     Uni_predDMIs <- unique(predDMI)
-      #     names(Uni_predDMIs) <- c("mProtein", "dProtein", "Motif", "Domain")
-      #     predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-      #     head(predDMIs)
-      #     if(nrow(predDMIs) != 0){
-      #       #Network
-      #       
-      #       first <- predDMI[,c("mProtein","Motif")]
-      #       g <- graph.data.frame(first, directed = F)
-      #       #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-      #       V(g)$color <- ifelse(V(g)$name %in% predDMI[,1], "#A93226", "#F7DC6F")
-      #       V(g)$shape <- ifelse(V(g)$name %in% predDMI[,1], "square", "box")
-      #       
-      #       #Second
-      #       second <- predDMI[,c("Motif","Domain")]
-      #       g2 <- graph.data.frame(second, directed = F)
-      #       #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-      #       V(g2)$color <- ifelse(V(g2)$name %in% predDMI[,1], "#9B59B6", "#D35400")
-      #       V(g2)$shape <- ifelse(V(g2)$name %in% predDMI[,1], "box", "circle")
-      #       #plot(g2,  edge.color="orange")
-      #       #print(second)
-      #       #visIgraph(g2)
-      #       #V(g2)$color <- "green"
-      #       #Third
-      #       
-      #       third <- predDMI[,c("Domain","dProtein")]
-      #       g3 <- graph.data.frame(third, directed = F)
-      #       #igraph.options(plot.layout=layout.graphopt, vertex.size=10)
-      #       V(g3)$color <- ifelse(V(g3)$name %in% predDMI[,2], "#85C1E9", "#9B59B6")
-      #       V(g3)$shape <- ifelse(V(g3)$name %in% predDMI[,2], "circle", "vrectangle")
-      #       
-      #       
-      #       #merge networks
-      #       g4 = graph.union(g,g2,g3, byname = TRUE)
-      #       #g4 <- g %u% g2 %u% g3
-      #       g5 <- simplify(g4, remove.multiple = TRUE, remove.loops = TRUE)
-      #       #plot.igraph(g5, layout=layout.fruchterman.reingold)
-      #       V(g5)$color <- ifelse(is.na(V(g5)$color_1),
-      #                             V(g5)$color_3,V(g5)$color_1)
-      #       V(g5)$shape <- ifelse(is.na(V(g5)$shape_1),
-      #                             V(g5)$shape_3,V(g5)$shape_1)
-      #       E(g5)$color <- "black"
-      #       E(g)$width <- 9
-      #       g6 <- visIgraph(g5,layout = input$selectlayout, physics = FALSE, smooth = TRUE, type = "square")
-      #       #visExport(g6, type = "png", name = "export-network",float = "left", label = "Save network", background = "white", style= "")
-      #       
-      #     }
-      #   } else{
-      #     
-      # #Join/Merge two files based on Motif
-      # Join <- merge( Motif_NR, Domain, by="Motif")
-      # #print(Join)
-      # names(Join) <- c("Motif", "Seq", "Domains")  #Change header of the output file
-      # #Load mProtein_Motif_Domain file (result file from the previous code)
-      # names(dProtein) <- c("Domains", "dProteins")
-      # #joined both files based on Domains
-      # DMI <- merge(Join, dProtein,by="Domains")
-      # #Filtered unique DMIs
-      # Uni_DMI <- unique(DMI)
-      # #Named the header of output file
-      # names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
-      # #print(Uni_DMI)
-      # 
-      # #PPI-DMI Mapping
-      # ########################################################################
-      # names(PPI2) <- c("mProtein", "dProtein")
-      # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-      
-      # Uni_predDMIs <- unique(predDMI)
-      # names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
-      # predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-      
-      predDMIs <- generatePredictedDMIs(input)
+      predDMIs <- predictedDMIs() # generatePredictedDMIs(input,adata$data)
       predDMI = predDMIs
-      
       
       if(nrow(predDMIs) != 0){
         #Network
@@ -1710,197 +939,9 @@ server <- shinyServer(function(input, output, session){
     }
   )
 })
+##############################
+# End of Server code.
+##############################
 
-
-### Functions for loading data
-
-# Load PPI data (mProtein, dProtein)
-#PPI2 <- loadPPIData(input)
-loadPPIData <- function(input){
-  PPIFile<-input$PPI
-  if(is.null(PPIFile)){
-    #showNotification("Either SLiM prediction or PPI file is missing. Loading example data", type = "warning", duration = NULL)
-    PPI2<-read.csv("data/PPIs.csv",header=TRUE,sep=",")
-  }
-  else{
-    
-    PPI2<-read.csv(PPIFile$datapath,header=TRUE,sep=",")
-  }
-  PPI2 = PPI2[,1:2]
-  # Make unique pairs
-  PPI2 = unique(PPI2)
-  colnames(PPI2) = c("mProtein","dProtein")
-  return(PPI2)
-}
-
-### Making the "Motif" table (mProtein-Motif)
-#Motif <- loadDataMotif(input)
-loadDataMotif <- function(input){
-  #File upload check
-  MotifFile<-input$Motif
-  if(input$SLiMrunid){
-    Motif<-read.delim(paste0("http://rest.slimsuite.unsw.edu.au/retrieve&jobid=",input$SLiMRun,"&rest=occ"),header=TRUE,sep=",")
-    motfield = "Motif"
-    protfield = "AccNum"
-  }
-  else{
-    # Check whether file loaded
-    if(is.null(MotifFile)){
-      fname <- "data/known.occ.csv"
-    }else{
-      fname <- MotifFile$datapath
-    }
-    # Check whether csv or tdt
-    if(substr(fname,nchar(fname)-2,nchar(fname)) %in% c("csv","CSV")){
-      Motif<-read.csv(fname,header=TRUE,sep=",")
-    }else{
-      Motif<-read.csv(fname,header=TRUE,sep="\t")
-    }
-    # Select mProtein and Motif IDs
-    # This will have input$motifmprotein and input$motifmotif text boxes 
-    if(input$motifmprotein %in% colnames(Motif)){
-      protfield = input$motifmprotein
-    }else{
-      protfield = "mProtein"
-    }
-    if(input$motifmotif %in% colnames(Motif)){
-      motfield = input$motifmotif
-    }else{
-      motfield = "Motif"
-    }
-  }
-  # NOTE: For direction dProtein links, this table will be replaced by duplicated DMI table fields
-  # Pull out required columns dependent on strategy
-  if(input$DMIStrategy %in% c("elmiprot")){
-    # Direct protein links will use protein IDs from DMI file as domain IDs
-    Motif <- loadDataMotifDomain(input)
-    Motif <- Motif[,c("Motif","Motif")]
-  }else{
-    Motif <- Motif[,c(protfield,motfield)]
-  }
-  colnames(Motif) <- c("mProtein","Motif")
-  return(Motif)
-}
-
-
-### Making the "Domain" table (Domain-dProtein)
-#dProtein <- loadDatadomain(input)
-loadDatadomain <- function(input){
-  
-  DomainFile<-input$domain
-  # Check whether file loaded
-  if(is.null(DomainFile)){
-    fname <- "data/domain.csv"
-  }else{
-    fname <- DomainFile$datapath
-  }
-  # Check whether csv or tdt
-  if(substr(fname,nchar(fname)-2,nchar(fname)) %in% c("csv","CSV")){
-    dProtein<-read.csv(fname,header=TRUE,sep=",")
-  }else{
-    dProtein<-read.csv(fname,header=TRUE,sep="\t")
-  }  
-  # Select Domain and dProtein IDs
-  # This will have input$domaindomain and input$domaindprotein text boxes 
-  if(input$domaindomain %in% colnames(dProtein)){
-    domfield = input$domaindomain
-  }else{
-    domfield = "Domain"
-  }
-  if(input$domaindprotein %in% colnames(dProtein)){
-    protfield = input$domaindprotein
-  }else{
-    protfield = "dProtein"
-  }
-  
-  # NOTE: For direction dProtein links, this table will be replaced by duplicated DMI table fields
-  # Pull out required columns dependent on strategy
-  if(input$DMIStrategy %in% c("elmiprot","elmcprot")){
-    # Direct protein links will use protein IDs from DMI file as domain IDs
-    dProtein <- loadDataMotifDomain(input)
-    dProtein <- dProtein[,c("Domain","Domain")]
-  }else{
-    dProtein <- dProtein[,c(domfield,protfield)]
-  }
-  colnames(dProtein) <- c("Domain","dProtein")
-  return(dProtein)
-}
-
-
-### Making the "DMI" table (Motif-Domain)
-#Domain <- loadDataMotifDomain(input)
-loadDataMotifDomain <- function(input){
-  MotifDomainFile<-input$MotifDomain
-  
-  # Choose which file to use for DMI data
-  # Default strategy is elmc-protein
-  fname <- "data/elm_interactions.tsv"
-  # Elm	Domain	interactorElm	interactorDomain	StartElm	StopElm	StartDomain	StopDomain	AffinityMin	AffinityMax	PMID	taxonomyElm	taxonomyDomain	
-  # CLV_Separin_Fungi	PF03568	Q12158	Q03018	175	181	1171	1571	None	None	10403247,14585836	"559292"(Saccharomyces cerevisiae S288c)	"559292"(Saccharomyces cerevisiae S288c)
-  if(input$DMIStrategy == c("elmcdom")){
-    fname <- "data/motif-domain.tsv"
-  }
-  # "ELMidentifier"	"InteractionDomainId"	"Interaction Domain Description"	"Interaction Domain Name"
-  #  "CLV_NRD_NRD_1"	"PF00675"	"Peptidase_M16"	"Insulinase (Peptidase family M16)"  
-  # Check whether file loaded - over-rides default
-  if(! is.null(MotifDomainFile)){
-    fname <- MotifDomainFile$datapath
-  }
-  #writeLines(fname)
-  
-  # Check whether csv or tdt
-  if(substr(fname,nchar(fname)-2,nchar(fname)) %in% c("csv","CSV")){
-    Domain<-read.csv(fname,header=TRUE,sep=",")
-  }else{
-    Domain<-read.csv(fname,header=TRUE,sep="\t")
-  }  
-  #writeLines(paste(colnames(Domain)))
-  
-  # Select Motif and Domain IDs
-  # This will have input$dmimotif and input$dmidomain text boxes 
-  if(input$dmimotif %in% colnames(Domain)){
-    motfield = input$dmimotif
-  }else{
-    motfield = "Motif"
-  }
-  if(input$dmidomain %in% colnames(Domain)){
-    domfield = input$dmidomain
-  }else{
-    domfield = "Domain"
-  }
-  Domain <- Domain[,c(motfield,domfield)]
-  colnames(Domain) <- c("Motif","Domain")
-  return(Domain)
-}
-
-#### Generate predicted DMis
-# predDMIs <- generatePredictedDMIs(input)
-generatePredictedDMIs <- function(input){
-  
-  Domain <- loadDataMotifDomain(input)
-  dProtein <- loadDatadomain(input)
-  Motif <- loadDataMotif(input)
-  PPI2 <- loadPPIData(input)
-  
-  Motif_NR<-unique(Motif)
-  
-  #Join/Merge two files based on Motif
-  Join <- merge( Motif_NR, Domain, by="Motif")
-  #print(Join)
-  #joined both files based on Domains
-  DMI <- merge(Join, dProtein,by="Domain")
-  #Filtered unique DMIs
-  Uni_DMI <- unique(DMI)
-  #print(Uni_DMI)
-  
-  #PPI-DMI Mapping
-  ########################################################################
-  #names(PPI2) <- c("mProtein", "dProtein")
-  predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
-  Uni_predDMIs <- unique(predDMI)
-  #names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
-  predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-  print(predDMIs)
-  
-  return(predDMIs)
-}
+#*********************************************************************************************************
+#*********************************************************************************************************
