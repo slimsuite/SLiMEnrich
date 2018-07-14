@@ -5,14 +5,15 @@
 ################# ::: APP INFO ::: ######################
 info = list(
   apptitle = "SLiMEnrich",
-  version = "1.3.1",
-  lastedit = "11 Jul 2018",
+  version = "1.3.2",
+  lastedit = "14 Jul 2018",
   author = "Sobia Idrees & Richard J. Edwards",
   contact = "richard.edwards@unsw.edu.au",
   description = "SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyses enrichment through permutation test."
 )
 #*********************************************************************************************************
 #*********************************************************************************************************
+devmode = FALSE   # This affects some of the printing to screen
 ##############################
 #Version History
 ##############################
@@ -32,6 +33,7 @@ info = list(
 #V1.3.0 - Updated the DMI Strategy Handling. Added separate load functions. Modified progress bars and notifications.
 #V1.3.1 - Partitioned out some general code into main.R. Updated ui.R and server.R. Updated slimenrich.R.
 #       - Added options to slimenrich.R for output directory, DMI strategy, randomisations and histogram settings.
+#V1.3.2 - Modified ui.R to load main.R for server functions.
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -58,18 +60,18 @@ load_or_install = function(package_names)
   } 
 }
 # if(thisisshiny){
-#   package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets","optparse")
+   package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
 # }else{
 #   package_names = c("ggplot2", "visNetwork", "igraph","optparse","stringr")
 # }
-# if(devmode){
-#   load_or_install(package_names)
-# }else{
-#   suppressMessages(
-#     suppressWarnings(
-#       load_or_install(package_names)
-#   ))
-# }
+if(devmode){
+  load_or_install(package_names)
+}else{
+  suppressMessages(
+    suppressWarnings(
+      load_or_install(package_names)
+  ))
+}
 ##############################
 #SETUP DATA
 ##############################

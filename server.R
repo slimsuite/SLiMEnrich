@@ -1,18 +1,18 @@
 #*********************************************************************************************************
 #*********************************************************************************************************
 # Please see main.R for App version, history and license information.
-devmode = FALSE   # This affects some of the printing to screen
+#devmode = FALSE   # This affects some of the printing to screen
 #thisisshiny = TRUE  # This determines the packages loaded.
 source("main.R")
 package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
-if(devmode){
-  load_or_install(package_names)
-}else{
-  suppressMessages(
-    suppressWarnings(
-      load_or_install(package_names)
-    ))
-}
+# if(devmode){
+#   load_or_install(package_names)
+# }else{
+#   suppressMessages(
+#     suppressWarnings(
+#       load_or_install(package_names)
+#     ))
+# }
 writeLines(paste("Running",info$apptitle,"Version",info$version))
 #*********************************************************************************************************
 #*********************************************************************************************************
