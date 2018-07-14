@@ -60,7 +60,7 @@ load_or_install = function(package_names)
   } 
 }
 #if(thisisshiny){
- package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
+ package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets","optparse")
 #}else{
 # package_names = c("ggplot2", "visNetwork", "igraph","optparse")
 #}
