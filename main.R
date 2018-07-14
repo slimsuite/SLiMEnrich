@@ -59,11 +59,11 @@ load_or_install = function(package_names)
     library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
   } 
 }
-if(thisisshiny){
+#if(thisisshiny){
  package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
-}else{
- package_names = c("ggplot2", "visNetwork", "igraph","optparse")
-}
+#}else{
+# package_names = c("ggplot2", "visNetwork", "igraph","optparse")
+#}
 if(devmode){
   load_or_install(package_names)
 }else{

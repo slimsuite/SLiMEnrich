@@ -7,6 +7,7 @@
 # Load main.R data and functions
 #options(warn = -1)
 library(stringr)
+library(optparse)
 thisisshiny = FALSE  # This controls the packages loaded
 #devmode = FALSE   # This affects some of the printing to screen
 initial.options <- commandArgs(trailingOnly = FALSE)
