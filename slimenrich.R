@@ -113,21 +113,21 @@ input$shufflenum = opt$random
 adata = setupData()
 writeLines('Loading data...')
 # Load PPI data (mProtein-dProtein) -> adata$data$PPI
-writeLines(paste0('Loading PPI from', input$PPI$datapath))
+writeLines(paste0('Loading PPI from ', input$PPI$datapath))
 adata$data$FullPPI = loadPPIData(input)
 adata$data$PPI = unique(parsePPIData(input,adata$data$FullPPI))
 if(devmode){ head(adata$data$PPI) }
 # Making the "Motif" table (mProtein-Motif) -> adata$data$Motifs
-writeLines(paste0('Loading Motifs from', input$Motif$datapath))
+writeLines(paste0('Loading Motifs from ', input$Motif$datapath))
 adata$data$FullMotifs = loadDataMotif(input)
 adata$data$Motifs = unique(parseDataMotif(input,adata$data$FullMotifs))
 # Making the "DMI" table (Motif-Domain) -> adata$data$DMI
-writeLines(paste0('Loading DMI from', input$MotifDomain$datapath))
+writeLines(paste0('Loading DMI from ', input$MotifDomain$datapath))
 #print(input)
 adata$data$FullDMI = loadDataMotifDomain(input)
 adata$data$DMI = unique(parseDataMotifDomain(input,adata$data$FullDMI))
 # Making the "Domain" table (Domain-dProtein) -> adata$data$Domains
-writeLines(paste0('Loading domains from', input$domain$datapath))
+writeLines(paste0('Loading domains from ', input$domain$datapath))
 adata$data$FullDomains = loadDatadomain(input)
 adata$data$Domains = unique(parseDatadomain(input,adata$data$FullDomains))
 # Report loaded data
@@ -256,7 +256,9 @@ PermutationFunction <- function (data, k) {
   permutations
 }
 
-rdir = paste0(opt$output,"Randomdata/")
+#rdir = paste0(opt$output,"Randomdata/")
+rdir = paste0("Randomdata/",basename(opt$pFile),"/")
+
 if(! file.exists(rdir)){
   dir.create(rdir)
   writeLines(paste("Created directory:",rdir))

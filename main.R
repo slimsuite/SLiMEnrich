@@ -5,7 +5,7 @@
 ################# ::: APP INFO ::: ######################
 info = list(
   apptitle = "SLiMEnrich",
-  version = "1.4.0",
+  version = "1.4.1",
   lastedit = "15 Jul 2018",
   author = "Sobia Idrees & Richard J. Edwards",
   contact = "richard.edwards@unsw.edu.au",
@@ -37,6 +37,8 @@ devmode = FALSE   # This affects some of the printing to screen
 #V1.3.3 - Fixed bug where potential DMI were independent of loaded PPI data. Starting adding documentation to tabs.
 #V1.3.4 - Updated generation of Motif and Domain summary tables and graphs.
 #V1.4.0 - Added option to plot normalised DMI and estimated real DMI.
+#V1.4.1 - Modified slimenrich.R to name the RandomData/ directory after the input PPI and place in main run directory rather than output/.
+#       - Tweaked the number of s.f. and d.p. that the App returns results.
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.

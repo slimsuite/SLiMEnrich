@@ -738,6 +738,8 @@ server <- shinyServer(function(input, output, session){
       mtext(paste0("P-value is: < ", 1/input$shufflenum), side = 3, at=pplace, font = 4, col = "red")
       pvalue <-  paste0("<b>P-value: </b> < ", 1/input$shufflenum)
     }else{
+      pdp = round(as.integer(log10(input$shufflenum))+0.499)
+      pvalue <- round(pvalue,pdp)
       #mtext(paste0("P-value is: ", pvalue), side = 3, at=predDMInum+90, font = 4, col = "red")
       mtext(paste0("P-value is: ", pvalue), side = 3, at=pplace, font = 4, col = "red")
       pvalue <-  paste0("<b>P-value: </b>", pvalue)
@@ -750,9 +752,9 @@ server <- shinyServer(function(input, output, session){
     }
     obsval <- paste0("<b>Observed NR DMI: </b>", predDMInum)
     obsdmi <- paste0("<b>Observed DMI (redundant): </b>", nrow(predictedDMImutlilink))
-    meanvalue <- paste0("<b>Mean random DMI: </b>", round(meanRand,2))
-    Escore <- paste0("<b>Enrichment score (E-score): </b>", round(predDMInum/meanRand,2))
-    FDR <- paste0("<b>False Discovery Rate (FDR): </b>", round(mean(ob_fdr)/predDMInum,2))
+    meanvalue <- paste0("<b>Mean random DMI: </b>", signif(meanRand,4))
+    Escore <- paste0("<b>Enrichment score (E-score): </b>", signif(predDMInum/meanRand,4))
+    FDR <- paste0("<b>False Discovery Rate (FDR): </b>", round(mean(ob_fdr)/predDMInum,4))
     output$summary <- renderUI({
       
       HTML(paste("<font color=\"#FF0000\"><b>Summary of Histogram</b></font>", pvalue, obsdmi, obsval, meanvalue, Escore, FDR, sep = '<hr/>'))
