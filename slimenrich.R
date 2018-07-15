@@ -131,20 +131,20 @@ writeLines(paste0('Loading domains from ', input$domain$datapath))
 adata$data$FullDomains = loadDatadomain(input)
 adata$data$Domains = unique(parseDatadomain(input,adata$data$FullDomains))
 # Report loaded data
-D = adata$data
-writeLines(paste0('PPI: ', nrow(D$FullPPI), " (", ncol(D$FullPPI), " fields); ", nrow(D$PPI), " NR"))
-writeLines(paste0('Motifs: ', nrow(D$FullMotifs), " (", ncol(D$FullMotifs), " fields); ", nrow(D$Motifs), " NR"))
-writeLines(paste0('DMI: ', nrow(D$FullDMI), " (", ncol(D$FullDMI), " fields); ", nrow(D$DMI), " NR"))
-writeLines(paste0('Domains: ', nrow(D$FullDomains), " (", ncol(D$FullDomains), " fields); ", nrow(D$Domains), " NR"))
+Data = adata$data
+writeLines(paste0('PPI: ', nrow(Data$FullPPI), " (", ncol(Data$FullPPI), " fields); ", nrow(Data$PPI), " NR"))
+writeLines(paste0('Motifs: ', nrow(Data$FullMotifs), " (", ncol(Data$FullMotifs), " fields); ", nrow(Data$Motifs), " NR"))
+writeLines(paste0('DMI: ', nrow(Data$FullDMI), " (", ncol(Data$FullDMI), " fields); ", nrow(Data$DMI), " NR"))
+writeLines(paste0('Domains: ', nrow(Data$FullDomains), " (", ncol(Data$FullDomains), " fields); ", nrow(Data$Domains), " NR"))
 
 ### Generate potential DMI
-PPI2 <- D$PPI
+PPI2 <- Data$PPI
 ppidProtein = as.character(unique(PPI2$dProtein))
 ppimProtein = as.character(unique(PPI2$mProtein))
-Domain <- D$DMI
-dProtein <- D$Domains
+Domain <- Data$DMI
+dProtein <- Data$Domains
 dProtein <- dProtein[dProtein$dProtein %in% ppidProtein,]
-Motif_NR <- D$Motifs
+Motif_NR <- Data$Motifs
 Motif_NR <- Motif_NR[Motif_NR$mProtein %in% ppimProtein,]
 #Join/Merge two files based on Motif
 Join <- merge(Motif_NR, Domain, by="Motif")
