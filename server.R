@@ -655,6 +655,20 @@ server <- shinyServer(function(input, output, session){
       removeNotification("plotwarning")
     }
   })
+  
+  # Update histogram labels
+  #div(id="txtbox", textInput("text3", label = "Main title", value = "Distribution of random DMIs")),
+  #div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Number of DMIs")),
+  #div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
+  # observeEvent(input$histreal | input$histnorm, {
+  #   if(input$text == settings$histxlab){   
+  #     newlabel = input$text
+  #     if(input$histreal){ newlabel = "Estimated Real DMI (Predicted - Random)" }
+  #     if(input$histnorm){ newlabel = paste("Normalised",newlabel) }
+  #     updateTextInput(session, "text", value = newlabel)
+  #   }
+  # })
+      
   #Function to generate Histogram
   plotInput <- function(){
     #File upload check
@@ -665,20 +679,47 @@ server <- shinyServer(function(input, output, session){
     
     #dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
     x <- rPPIDMI()
+    names(x) <- "values"
+    meanRand <- mean(x$values)
     predictedDMImutlilink = predictedDMIs()
     predDMIs = unique(predictedDMImutlilink[,c("mProtein","dProtein")])
     predDMInum = nrow(predDMIs)
+    pvalue = length(x[x >= predDMInum])/input$shufflenum
+    ob_fdr <- x[x$values <= predDMInum, ]
     
-    names(x) <- "values"
-    #bins<- seq(min(x), max(x), length.out = input$bins + 1)
+    # Set up plot data attributes
     par(bg=input$col2)
+    binwidth = input$binwidth
+    plotobs = predDMInum
+    
+    # Update histogram labels
+    # x-axis
+    newlabel = input$text
+    if(input$histreal){ newlabel = "Estimated Real DMI (Predicted - Random)" }
+    if(input$histnorm){ newlabel = paste("Normalised",newlabel) }
+    updateTextInput(session, "text", value = newlabel)
+    # main title
+    newlabel = input$text3
+    if(input$histreal){ newlabel = "Distribution of Estimated Real DMI" }
+    #if(input$histnorm){ newlabel = paste("Normalised",newlabel) }
+    updateTextInput(session, "text3", value = newlabel)
+
+    # Optional conversion to estimated real DMI
+    if(input$histreal){
+      x <- predDMInum - x
+    }
     xlimmax = max(c(input$xlimend,max(x)*1.1,predDMInum*1.1))
-    bins<- seq(0, xlimmax+input$binwidth, input$binwidth)
-    # if(max(bins) < xlimmax){
-    #   bins = c(bins,max(bins)+input$binwidth)
-    # }
-    #ymax = max(hist(x$values, breaks=bins, plot=FALSE)$counts) * 1.5   
-    h<- hist(x$values, breaks=bins, col = input$col, border = 'black', main=input$text3, ylab=input$text2,
+    # Optional normalisation
+    if(input$histnorm){
+      plotobs <- plotobs / meanRand
+      x <- x / meanRand
+      bins <- seq(0, xlimmax+binwidth, binwidth) / meanRand
+      xlimmax = max(c(input$xlimend,max(x)*1.1,plotobs*1.1))
+    }else{
+      bins <- seq(0, xlimmax+binwidth, binwidth)
+    }
+    # Generate histogram
+    h <- hist(x$values, breaks=bins, col = input$col, border = 'black', main=input$text3, ylab=input$text2,
              xlab=input$text, xlim = c( input$xlimstart,  xlimmax), labels = input$barlabel, cex.main=1.5, cex.lab=1.5,cex.axis=1.5)
 
     xfit <- seq(min(x$values),max(x$values),length=40)
@@ -686,14 +727,12 @@ server <- shinyServer(function(input, output, session){
     yfit<- yfit*diff(h$mids[1:2])*length(x$values)
     lines(xfit,yfit)
 
-    ob_fdr <- x[x$values <= predDMInum, ]
     #axis(side=3, lwd = 0, lwd.ticks = 4, at=nrow(predDMIs), lend=1, labels = FALSE, tcl=5, font=2, col = "black", padj = 0, lty = 3)
     #shows the observed value
-    mtext(paste("Observed value: ", predDMInum), side = 3, at=predDMInum, font = 4)
-    pvalue = length(x[x >= predDMInum])/input$shufflenum
+    mtext(paste("Observed value: ", predDMInum), side = 3, at=plotobs, font = 4)
     
     pplace = xlimmax
-    if(predDMInum > xlimmax/2){ pplace = predDMInum/2 }
+    if(plotobs > xlimmax/2){ pplace = plotobs/2 }
     
     if(pvalue == 0){ 
       mtext(paste0("P-value is: < ", 1/input$shufflenum), side = 3, at=pplace, font = 4, col = "red")
@@ -706,11 +745,13 @@ server <- shinyServer(function(input, output, session){
     #mtext(paste0("Mean is: ", mean(x$values)), side = 3, at=mean(x$values), font = 4, col="red")
     #mtext(paste0("FDR is: ", mean(x$values)/nrow(predDMIs)), side = 3, at=50, font = 4, col= "red")
     #points arrow on the observed value
-    arrows(predDMInum, 480, predDMInum, 0, lwd = 2, col = "black", length = 0.1, lty = 3)
+    if(! input$histreal){
+      arrows(plotobs, 480, plotobs, 0, lwd = 2, col = "black", length = 0.1, lty = 3)
+    }
     obsval <- paste0("<b>Observed NR DMI: </b>", predDMInum)
     obsdmi <- paste0("<b>Observed DMI (redundant): </b>", nrow(predictedDMImutlilink))
-    meanvalue <- paste0("<b>Mean random DMI: </b>", round(mean(x$values),2))
-    Escore <- paste0("<b>Enrichment score (E-score): </b>", round(predDMInum/mean(x$values),2))
+    meanvalue <- paste0("<b>Mean random DMI: </b>", round(meanRand,2))
+    Escore <- paste0("<b>Enrichment score (E-score): </b>", round(predDMInum/meanRand,2))
     FDR <- paste0("<b>False Discovery Rate (FDR): </b>", round(mean(ob_fdr)/predDMInum,2))
     output$summary <- renderUI({
       

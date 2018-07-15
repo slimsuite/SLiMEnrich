@@ -6,4 +6,7 @@ The histogram shows the expected distribution of predicted DMIs from these rando
 
 Clicking **SETTINGS** will open options for customising the histogram. The bin size (default 1) and x-axis extension can also be set for the commandline version (`-b` and `-x`, respectively). Note that the histogram x-axis will not truncate before the maximum real or random DMI count and any **Extend X-axis End** setting below this number will be ignored. The histogram can be saved as a PNG by clicking **DOWNLOAD**.
 
+* **Normalise DMI counts** will convert all DMI counts to a value relative to the mean random DMI count (e.g. divide all values by mean random DMI) to enable comparisons between datasets of very different sizes.
+* **Convert to distribution of estimated real DMI** will subtract the random DMI counts from the predicted DMI to generate a distribution of estimated real DMI.
+
 ---

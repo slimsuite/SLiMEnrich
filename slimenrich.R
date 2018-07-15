@@ -158,45 +158,7 @@ adata$data$potentialDMI = Uni_DMI
 adata$data$potentialDMINR = unique(Uni_DMI[,c("mProtein","dProtein")])
 writeLines(paste(nrow(adata$data$potentialDMI),"potential DMI;",nrow(adata$data$potentialDMINR),"NR"))
 
-# OLD CODE >>>>
-# #Read uploaded data
-# Motif<-read.csv(opt$mfile,header=TRUE,sep=",")[,c('AccNum','Motif')]
-# Motif_NR<-unique(Motif)
-# #If motif-domain file is not uploaded then read from data folder
-# if(is.null(opt$mdFile)){
-#   Domain<-read.csv("data/motif-domain.tsv",header=TRUE,sep="\t")[,c(1:2)]
-# }else{
-#   Domain<-read.csv(opt$mdFile,header=TRUE,sep="\t")[,c(1:2)]
-# }
-# #If domain file is not uploaded then read from data folder
-# if(is.null(opt$dFile)){
-#   dProtein<-read.csv("data/domain.csv",header=TRUE,sep=",")[,c('pfam','accnum')]
-# }else{
-#   dProtein<-read.csv(opt$dFile,header=TRUE,sep=",")[,c('pfam','accnum')]
-# }
-# #Motif-Domain Mapping                                            
-# #Rename the columns in two data
-# names(Motif_NR) <- c("Seq", "Motif")
-# names(Domain) <- c("Motif", "Domain")
-# #Join/Merge two data based on Motif                 
-# Join <- merge(Motif_NR, Domain, by="Motif")
-# #print(Join)
-# names(Join) <- c("Motif", "Seq", "Domain")  #Change header of the output file
-# #Domain-dProtein Mapping                                       
-# #Load results from the previous code)
-# names(dProtein) <- c("Domain", "dProteins")
-# writeLines("Finding potential DMIs...", sep="\n")
-# #joined both data based on Domain
-# DMI <- merge(Join, dProtein,by="Domain")
-# #Filtered unique DMIs
-# Uni_DMI <- unique(DMI)
-# #Named the header of output file
-# names(Uni_DMI) <- c("Domain", "Motif", "mProtein", "dProtein")
-# Uni_DMI <- Uni_DMI[, c("mProtein","Motif", "Domain", "dProtein")]
-# print(Uni_DMI)
-# <<<< OLD CODE
-
-#!# Make output directory an option
+# Setup output directory
 outdir = dirname(paste0(opt$output,"/"))
 if(! file.exists(outdir) & outdir != "."){
   dir.create(outdir)

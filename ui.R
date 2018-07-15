@@ -146,7 +146,14 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                            #htmlOutput("docs_tables"),
                            conditionalPanel(
                              condition = "input.hidehelp == false",
-                             includeMarkdown("doc/tabs/uploaded.md")
+                             conditionalPanel(
+                               condition = "input.run > 0",
+                               includeMarkdown("doc/tabs/uploaded.md")
+                             ),
+                             conditionalPanel(
+                               condition = "input.run == 0",
+                               includeMarkdown("doc/tabs/instructions.md")
+                             )
                            ),
                            div(id="fullfilecheck",prettyCheckbox("parseddata",label = tags$b("Show parsed data columns"), value = FALSE, status = "info",
                                                                  icon = icon("check"),
@@ -207,16 +214,18 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                     div(id="txtbox",downloadButton("downloadPlot", "Download")),
                     
                     div(id="settings", 
+                        checkboxInput("histnorm", label="Normalise DMI counts", value = FALSE, width = NULL),
+                        checkboxInput("histreal", label="Convert to distribution of estimated real DMI", value = FALSE, width = NULL),
                         #sliderInput("bins", "Number of bins", min= 1, max = 200, value = 30),
                         sliderInput("binwidth", "Width of bins", min= 1, max = 100, value = 1),
                         tags$hr(),
                         tags$h4(tags$strong("Select labels")),
                         
                         checkboxInput("barlabel", label="Bar Labels", value = FALSE, width = NULL),
-                        div(id="txtbox", textInput("text3", label = "Main title", value = "Distribution of random DMIs")),
-                        div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Number of DMIs")),
+                        div(id="txtbox", textInput("text3", label = "Main title", value = settings$histmain)), # "Distribution of random DMIs")),
+                        div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = settings$histxlab)), # "Number of DMIs")),
                         tags$style(type="text/css", "#txtbox {display: inline-block; max-width: 200px; }"),
-                        div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
+                        div(id="txtbox", textInput("text2", label = "Y-axis title", value = settings$histylab)), #"Frequency of random DMIs")),
                         div(id="txtbox",numericInput("xlimstart", label = "X-axis Start",0)),
                         div(id="txtbox",numericInput("xlimend", label = "Extend X-axis End",0)),
                         tags$hr(),

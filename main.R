@@ -5,7 +5,7 @@
 ################# ::: APP INFO ::: ######################
 info = list(
   apptitle = "SLiMEnrich",
-  version = "1.3.4",
+  version = "1.4.0",
   lastedit = "15 Jul 2018",
   author = "Sobia Idrees & Richard J. Edwards",
   contact = "richard.edwards@unsw.edu.au",
@@ -36,6 +36,7 @@ devmode = FALSE   # This affects some of the printing to screen
 #V1.3.2 - Modified ui.R to load main.R for server functions. Tidied up library loading.
 #V1.3.3 - Fixed bug where potential DMI were independent of loaded PPI data. Starting adding documentation to tabs.
 #V1.3.4 - Updated generation of Motif and Domain summary tables and graphs.
+#V1.4.0 - Added option to plot normalised DMI and estimated real DMI.
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -330,6 +331,17 @@ makeInputSettings <- function(){
   ))
 }
 ##############################################################
+
+##############################################################
+# Default settings
+##############################################################
+settings = list(
+  histmain = "Distribution of random DMIs",
+  histxlab = "Number of DMIs",
+  histylab = "Frequency of DMI count"
+)
+##############################################################
+
 
 ##############################################################
 # Documentation markdown
