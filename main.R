@@ -5,8 +5,8 @@
 ################# ::: APP INFO ::: ######################
 info = list(
   apptitle = "SLiMEnrich",
-  version = "1.3.3",
-  lastedit = "14 Jul 2018",
+  version = "1.3.4",
+  lastedit = "15 Jul 2018",
   author = "Sobia Idrees & Richard J. Edwards",
   contact = "richard.edwards@unsw.edu.au",
   description = "SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyses enrichment through permutation test."
@@ -35,6 +35,7 @@ devmode = FALSE   # This affects some of the printing to screen
 #       - Added options to slimenrich.R for output directory, DMI strategy, randomisations and histogram settings.
 #V1.3.2 - Modified ui.R to load main.R for server functions. Tidied up library loading.
 #V1.3.3 - Fixed bug where potential DMI were independent of loaded PPI data. Starting adding documentation to tabs.
+#V1.3.4 - Updated generation of Motif and Domain summary tables and graphs.
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.

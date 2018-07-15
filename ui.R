@@ -180,20 +180,29 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                            DT::dataTableOutput("PredDMIs"),tags$hr(),downloadButton('downloadpredDMI', 'Download')
                   ),
                   
-                  tabPanel("Statistics", fluidRow(
+                  tabPanel("Summary", 
                     conditionalPanel(
                       condition = "input.hidehelp == false",
                       includeMarkdown("doc/tabs/statistics.md")
                     ),
-                    splitLayout(cellWidths = c("75%", "25%"), plotlyOutput("plotbar"))
-                  )),
-                  tabPanel("Histogram", fluidRow(
+                    fluidRow(
+                      splitLayout(cellWidths = c("75%", "25%"), plotlyOutput("plotbar"))
+                    )
+                  ),
+                  tabPanel("Histogram", 
                     conditionalPanel(
                       condition = "input.hidehelp == false",
                       includeMarkdown("doc/tabs/histogram.md")
                     ),
-                    splitLayout(cellWidths = c("50%", "50%"), plotOutput("histogram"), htmlOutput("summary"))),
-                    tags$hr(),
+                    conditionalPanel(
+                      condition = "input.run > 0",
+                      fluidRow(
+                      splitLayout(cellWidths = c("50%", "50%"), plotOutput("histogram"), htmlOutput("summary")))
+                    ),
+                    conditionalPanel(
+                      condition = "input.hidehelp == false",
+                      includeMarkdown("doc/tabs/histogram2.md")
+                    ),
                     div(id="txtbox",actionButton("setting", "Settings")),
                     div(id="txtbox",downloadButton("downloadPlot", "Download")),
                     
@@ -205,7 +214,7 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                         
                         checkboxInput("barlabel", label="Bar Labels", value = FALSE, width = NULL),
                         div(id="txtbox", textInput("text3", label = "Main title", value = "Distribution of random DMIs")),
-                        div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Number of random DMIs")),
+                        div(id="txtbox",textInput(inputId="text",label = "X-axis title", value = "Number of DMIs")),
                         tags$style(type="text/css", "#txtbox {display: inline-block; max-width: 200px; }"),
                         div(id="txtbox", textInput("text2", label = "Y-axis title", value = "Frequency of random DMIs")),
                         div(id="txtbox",numericInput("xlimstart", label = "X-axis Start",0)),
@@ -252,7 +261,17 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                             )
                   ),
                   tabPanel("Help",
-                           includeMarkdown("README.md")     
+                           includeMarkdown("README.md"),
+                           includeMarkdown("doc/tabs/outputs.md"),
+                           includeMarkdown("doc/tabs/uploaded.md"),
+                           includeMarkdown("doc/tabs/potential.md"),
+                           includeMarkdown("doc/tabs/predicted.md"),
+                           includeMarkdown("doc/tabs/statistics.md"),
+                           includeMarkdown("doc/tabs/histogram.md"),
+                           includeMarkdown("doc/tabs/histogram2.md"),
+                           includeMarkdown("doc/tabs/motifs.md"),
+                           includeMarkdown("doc/tabs/domains.md"),
+                           includeMarkdown("doc/tabs/network.md")
                   )
                   
                   

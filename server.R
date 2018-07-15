@@ -368,14 +368,15 @@ server <- shinyServer(function(input, output, session){
     x <- c(a,b,c,d)
     
     statdmi <- data.frame(
-      Datatype = factor(c("Motif","Domain","mProtein","dProtein")),
+      Datatype = factor(c("Motif","Domain","mProtein","dProtein"),levels=c("Motif","Domain","mProtein","dProtein")),
       Numbers = c(a,b,c,d)
     )
     
     p <- ggplot(data=statdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
       geom_bar(colour="black", stat="identity") +
-      guides(fill=FALSE)+
-      scale_fill_manual(values = c("#9B59B6", "#85C1E9", "gold", "red"))
+      guides(fill=FALSE)+ylab("Unique Count")+
+      #scale_fill_manual(values = c("#9B59B6", "#85C1E9", "gold", "red"))
+      scale_fill_manual(values = c("gold","#9B59B6","red","#85C1E9"))
     
     p <- ggplotly(p)
     #p
@@ -426,36 +427,17 @@ server <- shinyServer(function(input, output, session){
     # predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
     
     predDMIs <- predictedDMIs() # generatePredictedDMIs(input,adata$data)
-    print(head(predDMIs))
-    predDMI = predDMIs
-    
-    Uni_predDMIs <- unique(predDMI)
-    names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
-    #predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-    df_pred <- data.frame(Uni_predDMIs)["Motif"]
-    names(df_pred) <- "Motif"
-    print(df_pred)
-    for (i in 1:length(df_pred)) {
-      Matches <- count(df_pred)
-      #names(Matches) <- "Frequency"
-      #col <- cbind(df_pred,newcol)
-      print(Matches)
-      #
-      
-    }
-    
-    df_pred2 <- data.frame(Matches)[,(1:2)]
-    names(df_pred2) <- c("ELM","Freq")
-    print(df_pred2)
-    Frequency <- df_pred2$Freq
-    ELMs_names <- df_pred2$ELM
-    df_pred2 <- data.frame(ELMs_names,Frequency)
+    uniDMIs <- unique(predDMIs[,c("mProtein","Motif", "dProtein")])
+    npred <- nrow(unique(predDMIs[,c("mProtein","dProtein")]))
+    # c("mProtein","Motif", "Domain", "dProtein")
+    df_pred <- uniDMIs[,"Motif"]
+    df_pred2 <- count(df_pred)
     #!# This is not a pvalue! (No idea what it is)
     # pvalueelm <- round(df_pred2$Frequency/nrow(df_pred),2)
     # pvaluecol <- cbind(df_pred2,pvalueelm)
-    propelm <- round(df_pred2$Frequency/sum(df_pred2$Frequency),2)
+    propelm <- round(df_pred2$freq/npred,2)
     propcol <- cbind(df_pred2,propelm)
-    names(propcol) <- c("Motif", "Frequency", "Proportion")
+    names(propcol) <- c("Motif", "Frequency", "DMI Proportion")
     # if(input$DMIStrategy == c("elmcdom","elmcprot")){
     #   #!# Make and add GO toggle? Doesn't seem to work
     #   names(pvaluecol) <- c("ELM", "Frequency", "Pvalue")
@@ -476,34 +458,14 @@ server <- shinyServer(function(input, output, session){
     }
   })
   displotfunc <- function(){
-    predDMI <- predictedDMIs()  # generatePredictedDMIs(input,adata$data)
-    predDMIs = predDMI
-    
-    Uni_predDMIs <- unique(predDMI)
-    names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
-    #predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-    df_pred <- data.frame(Uni_predDMIs)["Motif"]
-    names(df_pred) <- "Motif"
-    print(df_pred)
-    for (i in 1:length(df_pred)) {
-      Matches <- count(df_pred)
-      #names(Matches) <- "Frequency"
-      #col <- cbind(df_pred,newcol)
-      print(Matches)
-      #
-      
-    }
-    df_pred2 <- data.frame(Matches)[,(1:2)]
-    names(df_pred2) <- c("ELM","Freq")
-    print(df_pred2)
-    Frequency <- df_pred2$Freq
-    ELMs_names <- df_pred2$ELM
-    df_pred2 <- data.frame(ELMs_names,Frequency)
-    disdmi <- data.frame(
-      Datatype = factor(df_pred2$ELM),
-      Numbers = df_pred2$Freq
-    )
-    p <- ggplot(data=disdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
+    predDMIs <- predictedDMIs() # generatePredictedDMIs(input,adata$data)
+    uniDMIs <- unique(predDMIs[,c("mProtein","Motif", "dProtein")])
+    npred <- nrow(unique(predDMIs[,c("mProtein","dProtein")]))
+    # c("mProtein","Motif", "Domain", "dProtein")
+    df_pred <- uniDMIs[,"Motif"]
+    df_pred2 <- count(df_pred)
+    names(df_pred2) <- c("Motif","Frequency")
+    p <- ggplot(data=df_pred2, aes(x=Motif, y=Frequency,fill=Motif)) +
       geom_bar(colour="black", stat="identity") +
       guides(fill=FALSE)+
       theme(axis.title.x=element_blank(),
@@ -526,36 +488,14 @@ server <- shinyServer(function(input, output, session){
   #####################################################
   #*************************************************************************************
   disDom <- eventReactive(input$run, {
-    
-    predDMIs <- predictedDMIs()  # generatePredictedDMIs(input,adata$data)
-    predDMI = predDMIs
-    Uni_predDMIs <- unique(predDMI)
-    names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
-    #predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-    df_pred <- data.frame(Uni_predDMIs)["Domain"]
-    names(df_pred) <- "Domain"
-    print(df_pred)
-    for (i in 1:length(df_pred)) {
-      Matches <- count(df_pred)
-      #names(Matches) <- "Frequency"
-      #col <- cbind(df_pred,newcol)
-      print(Matches)
-      #
-      
-    }
-    
-    df_pred2 <- data.frame(Matches)[,(1:2)]
-    names(df_pred2) <- c("Domain","Freq")
-    print(df_pred2)
-    Frequency <- df_pred2$Freq
-    ELMs_names <- df_pred2$Domain
-    df_pred2 <- data.frame(ELMs_names,Frequency)
-    #pvalueelm <- round(df_pred2$Frequency/nrow(df_pred),2)
-    #pvaluecol <- cbind(df_pred2,pvalueelm)
-    propelm <- round(df_pred2$Frequency/sum(df_pred2$Frequency),2)
+    predDMIs <- predictedDMIs() # generatePredictedDMIs(input,adata$data)
+    uniDMIs <- unique(predDMIs[,c("mProtein","Domain", "dProtein")])
+    npred <- nrow(unique(predDMIs[,c("mProtein","dProtein")]))
+    df_pred <- uniDMIs[,"Domain"]
+    df_pred2 <- count(df_pred)
+    propelm <- round(df_pred2$freq/npred,2)
     propcol <- cbind(df_pred2,propelm)
-    names(propcol) <- c("Domain", "Frequency", "Proportion")
-    #names(pvaluecol) <- c("Domain", "Frequency", "Pvalue")
+    names(propcol) <- c("Domain", "Frequency", "DMI Proportion")
     propcol
     
   })
@@ -570,35 +510,14 @@ server <- shinyServer(function(input, output, session){
     }
   })
   disdomplotfunc <- function(){
-    predDMIs <- predictedDMIs()  #generatePredictedDMIs(input,adata$data)
-    predDMI = predDMIs
-    
-    Uni_predDMIs <- unique(predDMI)
-    names(Uni_predDMIs) <- c("mProtein", "dProtein", "Domain", "Motif")
-    #predDMIs <- Uni_predDMIs[, c("mProtein","Motif", "Domain", "dProtein")]
-    df_pred <- data.frame(Uni_predDMIs)["Domain"]
-    names(df_pred) <- "Domain"
-    print(df_pred)
-    for (i in 1:length(df_pred)) {
-      Matches <- count(df_pred)
-      #names(Matches) <- "Frequency"
-      #col <- cbind(df_pred,newcol)
-      print(Matches)
-      #
-      
-    }
-    df_pred2 <- data.frame(Matches)[,(1:2)]
-    names(df_pred2) <- c("Domain","Freq")
-    print(df_pred2)
-    Frequency <- df_pred2$Freq
-    dom_names <- df_pred2$Domain
-    df_pred2 <- data.frame(dom_names,Frequency)
-    disdomdmi <- data.frame(
-      Datatype = factor(df_pred2$dom_names),
-      Numbers = df_pred2$Frequency
-    )
-    
-    p <- ggplot(data=disdomdmi, aes(x=Datatype, y=Numbers,fill=Datatype)) +
+    predDMIs <- predictedDMIs() # generatePredictedDMIs(input,adata$data)
+    uniDMIs <- unique(predDMIs[,c("mProtein","Domain", "dProtein")])
+    npred <- nrow(unique(predDMIs[,c("mProtein","dProtein")]))
+    # c("mProtein","Motif", "Domain", "dProtein")
+    df_pred <- uniDMIs[,"Domain"]
+    df_pred2 <- count(df_pred)
+    names(df_pred2) <- c("Domain","Frequency")
+    p <- ggplot(data=df_pred2, aes(x=Domain, y=Frequency,fill=Domain)) +
       geom_bar(colour="black", stat="identity") +
       guides(fill=FALSE)+
       theme(axis.title.x=element_blank(),
