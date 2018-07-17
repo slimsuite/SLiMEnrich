@@ -260,8 +260,12 @@ PermutationFunction <- function (data, k) {
 }
 
 #rdir = paste0(opt$output,"Randomdata/")
+rdir = "Randomdata/"
+if(! file.exists(rdir)){
+  dir.create(rdir)
+  writeLines(paste("Created directory:",rdir))
+}
 rdir = paste0("Randomdata/",basename(opt$pFile),"/")
-
 if(! file.exists(rdir)){
   dir.create(rdir)
   writeLines(paste("Created directory:",rdir))
