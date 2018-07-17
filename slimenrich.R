@@ -350,7 +350,7 @@ predDMInum = nrow(predDMIs)
 input$binwidth = opt$binsize
 input$xlimend = opt$xmax
 
-png(filename=paste0(opt$output,"Histogram.png"), width = 1200, height = 800, units = "px", pointsize = 12)
+png(filename=paste0(opt$output,"Histogram.png"), width = 2400, height = 1600, units = "px", pointsize = 24)
 x<-read.csv(randfile, sep = ",", header = FALSE)
 names(x) <- "values"
 #bins<- seq(min(x), max(x), length.out = 20 + 1)
