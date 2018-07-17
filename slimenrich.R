@@ -24,7 +24,7 @@ writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),""))
 #*********************************************************************************************************
 #*********************************************************************************************************
 # Additional packages for standalone version. Shiny server packages are loaded in main.R
-package_names = c("optparse")
+package_names = c("optparse", "ggplot2", "visNetwork", "igraph","markdown", "plyr")
 if(devmode){
   load_or_install(package_names)
 }else{
@@ -435,8 +435,10 @@ E(g)$width <- 9
 g6 <- visIgraph(g5,layout = "layout_nicely", physics = FALSE, smooth = TRUE, type = "square")
 
 #visSave(g6, file = paste0(opt$output,"network.html"), selfcontained = TRUE)
-visSave(g6, file = "network.html", selfcontained = TRUE)
+#!# Add random ID to prevent clashes
+visSave(g6, file = "network.html", selfcontained = FALSE)
 noprint <- file.rename("network.html",paste0(opt$output,"network.html"))
+noprint <- file.rename("network.html",paste0(opt$output,"network_files"))
 writeLines("A DMI network has been saved as html file")
         
 writeLines(c("",paste0("End ",info$apptitle," V",info$version," Run: ", as.POSIXlt(Sys.time()))))

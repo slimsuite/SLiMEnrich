@@ -4,6 +4,16 @@
 source("main.R")
 devmode = FALSE
 writeLines(paste("Running",info$apptitle,"Version",info$version))
+# Package list. 
+package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
+if(devmode){
+  load_or_install(package_names)
+}else{
+  suppressMessages(
+    suppressWarnings(
+      load_or_install(package_names)
+    ))
+}
 #*********************************************************************************************************
 #*********************************************************************************************************
 

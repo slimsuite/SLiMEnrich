@@ -5,7 +5,7 @@
 ################# ::: APP INFO ::: ######################
 info = list(
   apptitle = "SLiMEnrich",
-  version = "1.4.2",
+  version = "1.4.3",
   lastedit = "16 Jul 2018",
   author = "Sobia Idrees & Richard J. Edwards",
   contact = "richard.edwards@unsw.edu.au",
@@ -40,6 +40,7 @@ devmode = FALSE   # This affects some of the printing to screen
 #V1.4.1 - Modified slimenrich.R to name the RandomData/ directory after the input PPI and place in main run directory rather than output/.
 #       - Tweaked the number of s.f. and d.p. that the App returns results.
 #V1.4.2 - Replaced D with Data as D is a (silently!) protected variable name in R.
+#V1.4.3 - Separated package usage again and reverted HTML to be non-contained (eliminates pandoc requirement).
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -64,16 +65,6 @@ load_or_install = function(package_names)
     } 
     library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
   } 
-}
-# Package list. This has been consolidated for both the shiny and standalone implementations
-package_names = c("shiny", "ggplot2", "colourpicker", "shinyBS", "shinythemes", "DT", "shinyjs", "visNetwork", "igraph","markdown","plotly", "plyr", "shinyWidgets")
-if(devmode){
-  load_or_install(package_names)
-}else{
-  suppressMessages(
-    suppressWarnings(
-      load_or_install(package_names)
-  ))
 }
 ##############################
 #SETUP DATA
