@@ -15,7 +15,7 @@ info = list(
 #*********************************************************************************************************
 devmode = FALSE   # This affects some of the printing to screen
 ##############################
-#Version History
+# Version History
 ##############################
 #V1.0.1 - Added code for checking whether packages installed. (Removes manual step)
 #V1.0.2 - Better naming conventions in code
@@ -42,13 +42,22 @@ devmode = FALSE   # This affects some of the printing to screen
 #V1.4.2 - Replaced D with Data as D is a (silently!) protected variable name in R.
 #V1.4.3 - Separated package usage again and reverted HTML to be non-contained (eliminates pandoc requirement).
 #V1.5.0 - Updated source ELM data in data/ to make future updates easier/clearer. Added CRAN mirror and some minor error handling.
+#       - Added scope to over-ride some default settings using a config file: need to expand the options covered by this.
 ##############################
-#SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-# SLiMEnrich program is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
-# You should have received a copy of the GNU General Public License along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# LICENSE
 ##############################
-#Required Libraries
+# SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the 
+# GNU General Public License as published by the Free Software Foundation, either version 3 of the License, 
+# or (at your option) any later version.
+#
+# SLiMEnrich program is distributed in the hope that it will be useful,but WITHOUT ANY WARRANTY; 
+# without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+# See the GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along with this program.  
+# If not, see <http://www.gnu.org/licenses/>.
+##############################
+# Required Libraries
 ##############################
 # Check whether packages of interest are installed
 is_installed = function(mypkg) is.element(mypkg, installed.packages()[,1]) 
@@ -332,11 +341,47 @@ makeInputSettings <- function(){
 # Default settings
 ##############################################################
 settings = list(
+  # General
+  devmode = FALSE,
+  # Histogram titles
   histmain = "Distribution of random DMIs",
   histxlab = "Number of DMIs",
-  histylab = "Frequency of DMI count"
+  histylab = "Frequency of DMI count",
+  # Histogram PNG output options
+  pngwidth = 2400, 
+  pngheight = 1600,
+  pointsize = 24,
+  # Commandline options
+  output = "/output/"
 )
 ##############################################################
+# Config file settings
+##############################################################
+loadConfig <- function(settings,configfile){
+  configdb = read.csv(configfile,stringsAsFactors = FALSE,header=FALSE,comment.char = '#')
+  cx = nrow(configdb)
+  writeLines(paste(cx,"settings read from",configfile))
+  if(cx > 0){
+    for(i in 1:cx){
+      settings[[configdb[i,1]]] = configdb[i,2]
+    }
+  }
+  settings
+}
+if(file.exists('slimenrich.cfg')){
+  settings = loadConfig(settings,'slimenrich.cfg')
+}
+# Update non-character types
+for(stype in c("pngwidth","pngheight","pointsize")){
+  settings[[stype]] = as.integer(settings[[stype]])
+}
+for(stype in c("devmode")){
+  settings[[stype]] = as.logical(settings[[stype]])
+}
+# Dev printing of loaded options
+if(settings$devmode){
+  print(settings)  
+}
 
 
 ##############################################################

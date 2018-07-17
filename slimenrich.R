@@ -20,10 +20,10 @@ source(paste0(rdir,"/main.R"))
 writeLines(c("","","########################################"))
 writeLines(paste("### Running",info$apptitle,"Version",info$version,"###"))
 writeLines(c("","","########################################")[3:1])
-writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),""))
-tryCatch(writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),"")),
+#writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),""))
+tryCatch({writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),""))},
          #error=writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),"UTC"))
-         error=writeLines("(Using UTC)")
+         error = function(err){writeLines(c(err,"(Using UTC)"))}
 )
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -65,8 +65,9 @@ option_list = list(
   make_option(c("-t", "--strategy"), type="character", default="elmcprot", 
               help="DMI strategy (elmiprot/elmcprot/elmcdom). See docs for details.", metavar="character"),
   #Output directory
-  make_option(c("-o", "--output"), type="character", default="./output/", 
-              help="Output directory. Trailing characters will set file prefix (e.g. -o ./output/myrun.). Note: by default, the output directory is placed in the run directory. [Default = ./output/]", metavar="PATH"),
+  make_option(c("-o", "--output"), type="character", default=settings$output, 
+              help=paste0("Output directory. Trailing characters will set file prefix (e.g. -o ./output/myrun.). ",
+                          "Note: by default, the output directory is placed in the run directory. [Default = ",settings$output,"]"), metavar="PATH"),
   #Randomisations
   make_option(c("-r", "--random"), type="integer", default=1000, 
               help="Number of PPI randomisations. [Default = 1000]", metavar="integer"),
@@ -350,7 +351,8 @@ predDMInum = nrow(predDMIs)
 input$binwidth = opt$binsize
 input$xlimend = opt$xmax
 
-png(filename=paste0(opt$output,"Histogram.png"), width = 2400, height = 1600, units = "px", pointsize = 24)
+#writeLines(paste0(opt$output,"Histogram.png"), settings$pngwidth, settings$pngheight, settings$pointsize)
+png(filename=paste0(opt$output,"Histogram.png"), width = settings$pngwidth, height = settings$pngheight, units = "px", pointsize = settings$pointsize)
 x<-read.csv(randfile, sep = ",", header = FALSE)
 names(x) <- "values"
 #bins<- seq(min(x), max(x), length.out = 20 + 1)
