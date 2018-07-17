@@ -6,6 +6,9 @@
 #*********************************************************************************************************
 # Load main.R data and functions
 #options(warn = -1)
+# Check whether packages of interest are installed
+is_installed = function(mypkg) is.element(mypkg, installed.packages()[,1])
+if(!is_installed("stringr")) { install.packages("stringr") } 
 library(stringr)
 #devmode = FALSE   # This affects some of the printing to screen
 initial.options <- commandArgs(trailingOnly = FALSE)
