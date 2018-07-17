@@ -53,7 +53,7 @@ option_list = list(
   make_option(c("-p", "--pFile"), type="character", default=NULL, 
               help="PPI file name [required]. Should have mProtein and dProtein fields.", metavar="FILENAME"),
   #SLiMs file 
-  make_option(c("-s", "--mFile"), type="character", default=paste0(rdir,"/data/known.occ.csv"), 
+  make_option(c("-s", "--mFile"), type="character", default=paste0(rdir,"/data/elm_instances.tsv"), 
               help="SLiM occurrence file name. Should have mProtein (or AccNum) and Motif fields. Not used if DMI strategy is `elmiprot`. [Default = ELM instances]", metavar="FILENAME"),
   #Motif-Domain file
   make_option(c("-m", "--mdFile"), type="character", default="ELM data", 
@@ -95,7 +95,7 @@ if(opt$strategy %in% c("elmiprot","elmcprot","elmcdom")){
 #print(opt$mdFile)
 if(opt$mdFile == "ELM data"){
   if(input$DMIStrategy %in% c("elmcdom")){
-    input$MotifDomain$datapath = paste0(rdir,"/data/motif-domain.tsv")
+    input$MotifDomain$datapath = paste0(rdir,"/data/elm_interaction_domains.tsv")
     input$dmimotif = "ELM.identifier"
     input$dmidomain = "Interaction.Domain.Id"  
   }else{
