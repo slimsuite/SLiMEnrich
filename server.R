@@ -122,11 +122,11 @@ server <- shinyServer(function(input, output, session){
     if(input$DMIStrategy == "elmcdom"){   # Motif=mProtein, Domain=dProtein
       updateTextInput(session, "dmimotif",
                       label = "DMI file Motif column",
-                      value = "ELMidentifier"
+                      value = "ELM.identifier"
       )
       updateTextInput(session, "dmidomain",
                       label = "DMI file Domain column",
-                      value = "InteractionDomainId"
+                      value = "Interaction.Domain.Id"
       )
     }
   })

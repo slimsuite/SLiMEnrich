@@ -5,8 +5,8 @@
 ################# ::: APP INFO ::: ######################
 info = list(
   apptitle = "SLiMEnrich",
-  version = "1.4.3",
-  lastedit = "16 Jul 2018",
+  version = "1.5.0",
+  lastedit = "17 Jul 2018",
   author = "Sobia Idrees & Richard J. Edwards",
   contact = "richard.edwards@unsw.edu.au",
   description = "SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyses enrichment through permutation test."
@@ -41,6 +41,7 @@ devmode = FALSE   # This affects some of the printing to screen
 #       - Tweaked the number of s.f. and d.p. that the App returns results.
 #V1.4.2 - Replaced D with Data as D is a (silently!) protected variable name in R.
 #V1.4.3 - Separated package usage again and reverted HTML to be non-contained (eliminates pandoc requirement).
+#V1.5.0 - Updated source ELM data in data/ to make future updates easier/clearer. Added CRAN mirror and some minor error handling.
 ##############################
 #SLiMEnrich program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or
 #  (at your option) any later version.
@@ -61,7 +62,7 @@ load_or_install = function(package_names)
     if(!is_installed(package_name)) 
     { 
       #install.packages(package_name,repos="http://lib.stat.cmu.edu/R/CRAN") 
-      install.packages(package_name)
+      install.packages(package_name,repos="http://cran.r-project.org")
     } 
     library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
   } 
@@ -124,16 +125,17 @@ loadDataMotif <- function(input){
   else{
     # Check whether file loaded
     if(is.null(MotifFile)){
-      fname <- "data/known.occ.csv"
+      fname <- "data/elm_instances.tsv"
     }else{
       fname <- MotifFile$datapath
     }
     # Check whether csv or tdt
     if(substr(fname,nchar(fname)-2,nchar(fname)) %in% c("csv","CSV")){
-      Motif<-read.csv(fname,header=TRUE,sep=",")
+      Motif<-read.csv(fname,header=TRUE,sep=",",comment.char = "#")
     }else{
-      Motif<-read.csv(fname,header=TRUE,sep="\t")
+      Motif<-read.csv(fname,header=TRUE,sep="\t",comment.char = "#")
     }
+    #print(head(Motif))
   }
   return(Motif)
 }
@@ -230,7 +232,7 @@ loadDataMotifDomain <- function(input){
   # Elm	Domain	interactorElm	interactorDomain	StartElm	StopElm	StartDomain	StopDomain	AffinityMin	AffinityMax	PMID	taxonomyElm	taxonomyDomain	
   # CLV_Separin_Fungi	PF03568	Q12158	Q03018	175	181	1171	1571	None	None	10403247,14585836	"559292"(Saccharomyces cerevisiae S288c)	"559292"(Saccharomyces cerevisiae S288c)
   if(input$DMIStrategy %in% c("elmcdom")){
-    fname <- "data/motif-domain.tsv"
+    fname <- "data/elm_interaction_domains.tsv"
   }
   # "ELMidentifier"	"InteractionDomainId"	"Interaction Domain Description"	"Interaction Domain Name"
   #  "CLV_NRD_NRD_1"	"PF00675"	"Peptidase_M16"	"Insulinase (Peptidase family M16)"  
@@ -308,7 +310,7 @@ makeInputSettings <- function(){
     PPI=list(datapath=paste0(rdir,"/data/PPIs.csv")),  # Default PPI file
     ppimprotein="mProtein",
     ppidprotein="dProtein",
-    Motif=list(datapath=paste0(rdir,"/data/known.occ.csv")),
+    Motif=list(datapath=paste0(rdir,"/data/elm_instances.tsv")),
     SLiMrunid=FALSE,
     SLiMRun="",
     motifmprotein = "AccNum",

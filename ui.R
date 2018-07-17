@@ -123,8 +123,8 @@ ui <- shinyUI(navbarPage(div(id= "title", ("SLiMEnrich")),windowTitle = "SLiMEnr
                    tags$h4("Motifs File:"),
                    tags$p("Motif-containing proteins and their motifs"),
                    # Default fields are from the ELM instances table, reformatted to match SLiMProb
-                   textInput(inputId="motifmprotein",label = "Motif file mProtein column", value = "AccNum"),
-                   textInput(inputId="motifmotif",label = "Motif file Motif column", value = "Motif")
+                   textInput(inputId="motifmprotein",label = "Motif file mProtein column", value = "Primary_Acc"),
+                   textInput(inputId="motifmotif",label = "Motif file Motif column", value = "ELMIdentifier")
           ),
           # Domain fields
           tags$div(class="domfields", checked=NA,

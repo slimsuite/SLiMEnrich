@@ -21,6 +21,10 @@ writeLines(c("","","########################################"))
 writeLines(paste("### Running",info$apptitle,"Version",info$version,"###"))
 writeLines(c("","","########################################")[3:1])
 writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),""))
+tryCatch(writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),"")),
+         #error=writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),"UTC"))
+         error=writeLines("(Using UTC)")
+)
 #*********************************************************************************************************
 #*********************************************************************************************************
 # Additional packages for standalone version. Shiny server packages are loaded in main.R
@@ -28,10 +32,16 @@ package_names = c("optparse", "ggplot2", "visNetwork", "igraph","markdown", "ply
 if(devmode){
   load_or_install(package_names)
 }else{
-  suppressMessages(
+  tryCatch({suppressMessages(
     suppressWarnings(
       load_or_install(package_names)
-    ))
+    ))}, error = function(err){
+      print(err)
+      writeLines(c("I'm having trouble installing packages",
+                       "Please make sure the following libraries are installed and try again:",
+                       package_names))
+    }
+  )
 }
 ##########################################################################
 ## Options
@@ -86,8 +96,8 @@ if(opt$strategy %in% c("elmiprot","elmcprot","elmcdom")){
 if(opt$mdFile == "ELM data"){
   if(input$DMIStrategy %in% c("elmcdom")){
     input$MotifDomain$datapath = paste0(rdir,"/data/motif-domain.tsv")
-    input$dmimotif = "ELMidentifier"
-    input$dmidomain = "InteractionDomainId"  
+    input$dmimotif = "ELM.identifier"
+    input$dmidomain = "Interaction.Domain.Id"  
   }else{
     input$MotifDomain$datapath = paste0(rdir,"/data/elm_interactions.tsv")
     if(input$DMIStrategy %in% c("elmiprot")){
@@ -438,7 +448,15 @@ g6 <- visIgraph(g5,layout = "layout_nicely", physics = FALSE, smooth = TRUE, typ
 #!# Add random ID to prevent clashes
 visSave(g6, file = "network.html", selfcontained = FALSE)
 noprint <- file.rename("network.html",paste0(opt$output,"network.html"))
-noprint <- file.rename("network_files",paste0(opt$output,"network_files"))
+newdir = paste0(opt$output,"network_files")
+if(file.exists(newdir)){
+  writeLines(paste0(newdir," already existed: renaming ",newdir,"_backup - please delete backup before re-running (or get errors)."))
+  noprint <- file.rename(newdir,paste0(newdir,"_backup"))
+}
+if(file.exists(newdir)){
+  writeLines(paste0(newdir," still exists: please delete backup before re-running (or get errors)."))
+}
+noprint <- file.rename("network_files",newdir)
 writeLines("A DMI network has been saved as html file")
         
 writeLines(c("",paste0("End ",info$apptitle," V",info$version," Run: ", as.POSIXlt(Sys.time()))))
