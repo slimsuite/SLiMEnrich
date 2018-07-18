@@ -17,11 +17,21 @@ script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initia
 rdir <- dirname(script.name)
 rdir = str_replace_all(rdir,fixed("~+~")," ")
 source(paste0(rdir,"/main.R"))
+logEvent <- function(logtext){
+  #writeLines(c(paste0(myTime(TRUE),": ",logtext)))
+  writeLines(c(paste(myTime(TRUE),logtext)))
+}
 printHead <- function(){
-  writeLines(c("","","########################################"))
-  writeLines(paste("### Running",info$apptitle,"Version",info$version,"###"))
-  writeLines(c("","","########################################")[3:1])
-  writeLines(c(paste("Run:", myTime()),"")
+  writeLines(c("","","#######################################"))
+  writeLines(paste("###    ",info$apptitle,"Version",info$version,"   ###"))
+  writeLines(c("","","#######################################")[3:1])
+  #writeLines(c(paste("Run:", myTime()),"")
+  #writeLines(c(paste0(myTime(TRUE),": Run Started."),""))
+  logEvent("Run Started.")
+  if(is.na(Sys.timezone())){
+    logEvent("NOTE: TimeZone not found. Printed times may not match system time.")
+  }
+  writeLines("")
   # tryCatch({writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),""))},
   #          #error=writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),"UTC"))
   #          warning = function(warn){ 
@@ -30,7 +40,7 @@ printHead <- function(){
   #                       c(paste("Run:", as.POSIXlt(Sys.time(),"UTC"), "")))
   #           },
   #          error = function(err){ print(err); writeLines(c("(Using UTC)"))}
-  )
+  #)
 }
 #*********************************************************************************************************
 #*********************************************************************************************************
@@ -75,6 +85,9 @@ option_list = list(
   make_option(c("-o", "--output"), type="character", default=settings$output, 
               help=paste0("Output directory. Trailing characters will set file prefix (e.g. -o ./output/myrun.). ",
                           "Note: by default, the output directory is placed in the run directory. [Default = ",settings$output,"]"), metavar="PATH"),
+  #Isoform filter
+  make_option(c("-i", "--isofilter"), type="logical", default=FALSE, action = "store_true", 
+              help="Convert isoforms into parent protein IDs (recognises X-Y IDs and converts to X). [Default = FALSE]", metavar=""),
   #Randomisations
   make_option(c("-r", "--random"), type="integer", default=1000, 
               help="Number of PPI randomisations. [Default = 1000]", metavar="integer"),
@@ -141,40 +154,55 @@ input$domain$datapath = opt$dFile
 # motifmotif = "Motif",
 
 input$shufflenum = opt$random
+input$isofilter = opt$isofilter
 
-#!# Add checks for file existence
-
-#*************************************************************************************
-#Step 1: Potential DMIs
+# Setup output directory
+outdir = dirname(paste0(opt$output,"/"))
+if(! file.exists(outdir) & outdir != "."){
+  dir.create(outdir)
+  writeLines(paste("A directory named",outdir, "has been created in the current working directory"))
+}
+#*********************************************************************************************************
+#*********************************************************************************************************
 ####################################################
+# Step 1: Load Data
+####################################################
+#!# Add checks for file existence
 adata = setupData()
-writeLines('Loading data...')
+logEvent(paste0('STEP 1: Loading data... (isofilter=',input$isofilter,")"))
 # Load PPI data (mProtein-dProtein) -> adata$data$PPI
-writeLines(paste0('Loading PPI from ', input$PPI$datapath))
+logEvent(paste0('Loading PPI from ', input$PPI$datapath))
 adata$data$FullPPI = loadPPIData(input)
 adata$data$PPI = unique(parsePPIData(input,adata$data$FullPPI))
 if(devmode){ head(adata$data$PPI) }
 # Making the "Motif" table (mProtein-Motif) -> adata$data$Motifs
-writeLines(paste0('Loading Motifs from ', input$Motif$datapath))
+logEvent(paste0('Loading Motifs from ', input$Motif$datapath))
 adata$data$FullMotifs = loadDataMotif(input)
 adata$data$Motifs = unique(parseDataMotif(input,adata$data$FullMotifs))
 # Making the "DMI" table (Motif-Domain) -> adata$data$DMI
-writeLines(paste0('Loading DMI from ', input$MotifDomain$datapath))
+logEvent(paste0('Loading DMI from ', input$MotifDomain$datapath))
 #print(input)
 adata$data$FullDMI = loadDataMotifDomain(input)
 adata$data$DMI = unique(parseDataMotifDomain(input,adata$data$FullDMI))
 # Making the "Domain" table (Domain-dProtein) -> adata$data$Domains
-writeLines(paste0('Loading domains from ', input$domain$datapath))
+logEvent(paste0('Loading domains from ', input$domain$datapath))
 adata$data$FullDomains = loadDatadomain(input)
 adata$data$Domains = unique(parseDatadomain(input,adata$data$FullDomains))
+
 # Report loaded data
 Data = adata$data
+writeLines("")
 writeLines(paste0('PPI: ', nrow(Data$FullPPI), " (", ncol(Data$FullPPI), " fields); ", nrow(Data$PPI), " NR"))
 writeLines(paste0('Motifs: ', nrow(Data$FullMotifs), " (", ncol(Data$FullMotifs), " fields); ", nrow(Data$Motifs), " NR"))
 writeLines(paste0('DMI: ', nrow(Data$FullDMI), " (", ncol(Data$FullDMI), " fields); ", nrow(Data$DMI), " NR"))
 writeLines(paste0('Domains: ', nrow(Data$FullDomains), " (", ncol(Data$FullDomains), " fields); ", nrow(Data$Domains), " NR"))
+writeLines("")
 
+####################################################
+# Step 2: Potential DMIs
+####################################################
 ### Generate potential DMI
+logEvent('STEP 2: Generating Potential DMI...')
 PPI2 <- Data$PPI
 ppidProtein = as.character(unique(PPI2$dProtein))
 ppimProtein = as.character(unique(PPI2$mProtein))
@@ -195,26 +223,18 @@ adata$data$potentialDMI = Uni_DMI
 adata$data$potentialDMINR = unique(Uni_DMI[,c("mProtein","dProtein")])
 writeLines(paste(nrow(adata$data$potentialDMI),"potential DMI;",nrow(adata$data$potentialDMINR),"NR"))
 
-# Setup output directory
-outdir = dirname(paste0(opt$output,"/"))
-if(! file.exists(outdir) & outdir != "."){
-  dir.create(outdir)
-  writeLines(paste("A directory named",outdir, "has been created in the current working directory"))
-}
 output_potentialDMIs <- write.csv(Uni_DMI, paste0(opt$output,"potentialDMIs.csv"), row.names = FALSE)
-writeLines("potentialDMIs.csv file has been saved in output folder")
+logEvent(paste0("Potential DMIs output to ",opt$output,"potentialDMIs.csv"))
+writeLines("")
 
-#*************************************************************************************
-
-#Step 2: Predicted DMIs
+####################################################
+# Step 3: Predicted DMIs
 ####################################################
 #PPI-DMI Mapping                                                         
-########################################################################
-
 # PPI2<-read.csv(opt$pFile,header=TRUE,sep=",")
 # PPI2 <- unique(PPI2)
 # names(PPI2) <- c("mProtein", "dProtein")
-writeLines("Finding predicted DMIs...", sep="\n")
+logEvent("STEP 3: Finding predicted DMIs...")
 predDMI <- merge(PPI2, Uni_DMI, by= c("mProtein", "dProtein"))
 Uni_predDMIs <- unique(predDMI)
 names(Uni_predDMIs) <- c("mProtein", "dProtein", "Motif", "Domain")
@@ -224,13 +244,13 @@ adata$data$predDMI = predDMIs
 adata$data$predDMINR = unique(predDMIs[,c("mProtein","dProtein")])
 writeLines(paste(nrow(adata$data$predDMI),"predicted DMI;",nrow(adata$data$predDMINR),"NR"))
 output_predictedDMIs <- write.csv(predDMIs, paste0(opt$output,"predictedDMIs.csv"), row.names = FALSE)
-writeLines("predictedDMIs.csv file has been saved in output folder")
+logEvent(paste0("Known/Predicted DMIs output to ",opt$output,"predictedDMIs.csv"))
+writeLines("")
 
-#*************************************************************************************
-
-#Step 3: Statistics
 ####################################################
-writeLines("Calculating number of mProteins, motifs, domains and dProteins...", sep="\n")
+# Step 4: DMI Statistics
+####################################################
+logEvent("STEP 4: Calculating number of mProteins, motifs, domains and dProteins...")
 png(filename=paste0(opt$output,"summaryStats.png"))
 colors=c("cadetblue1", "deepskyblue2", "blue", "darkblue")
 #Select unique Motifs
@@ -255,20 +275,19 @@ barplot(x, main="Statistics of DMIs", col = colors)
 legend("topright", 
        legend = c(paste("Motifs=",a),paste("Domains=",b),paste("mProteins=",c),paste("dProteins=",d)), fill = colors)
 noprint <- dev.off()
-writeLines("Summary Statistics Bar chart has been saved in output folder")
+logEvent("Summary Statistics Bar chart has been saved in output folder")
+writeLines("")
 
      
 #####################################################Enrichment Analysis####################################################
 #*********************************************************************************************************************************
-    
-#*************************************************************************************
-    
-# Step 4: rPPI-DMI Mapping
+# Step 5: rPPI-DMI Mapping
 ####################################################
 # This step generates 1000 random data and then compares each file with the potential DMIs dataset to generate a list of numbers (matches found in each PPI file).
 # Randomized data will be stored in a new directory created in App folder named as "Randomdata" and can be accessed later if required.
 # A file named randomNumbers will be generated in "Randomdata" that will be used to generate Histogram later.
 ####################################################
+logEvent("STEP 5: Randomised PPI datasets...")
 
 # Randomization/Permutations                                                  
       
@@ -336,9 +355,13 @@ if(reuse & reused > 0){
 if(reuse & reused < shufflenum){   # Some files made so need to repeat calculation
   reuse = FALSE
 }
-writeLines("Now mapping random PPI data to potential DMIs...")
-#rPPI-DMI Mapping                                                               
+
+writeLines("")
+
 #################################################################################
+# Step 6: rPPI-DMI Mapping                                                               
+#################################################################################
+logEvent("Mapping random PPI data to potential DMIs...")
 #!# Make devmode a toggle
 #i# If devmode is on, will reuse calculated data
 #!# Made this a devmode option because it is dangerous to reuse generic filenames when data can be different
@@ -363,11 +386,12 @@ if(reuse & file.exists(randfile)){
     output_randomNumbers <- write.table(Matches, randfile, col.names = FALSE, append = i > 1, row.names = FALSE)
   }
 }
+writeLines("")
 
 #*************************************************************************************
-    
-#Step 5: Histogram
+# Step 7: Histogram
 ####################################################
+logEvent("STEP 7: Generating enrichment histogram...")
 # Plotting/comparing NR predicted DMIs
 predDMIs = adata$data$predDMINR
 predDMInum = nrow(predDMIs)
@@ -435,6 +459,8 @@ if(opt$normalise){
   writeLines(c("",paste0("SLiMEnrich histogram output to",opt$output,"Histogram.png")))
 }
 
+DMIStrategy <- input$DMIStrategy 
+IsoFilter <- input$isofilter 
 ObsDMI <- nrow(adata$data$predDMI)
 ObsDMINR <- predDMInum
 MeanRandDMINR <-signif(meanRand,4)
@@ -442,11 +468,39 @@ MeanRandDMINR <-signif(meanRand,4)
 FDR <- signif(meanRand/nrow(predDMIs),4)
 Escore <- signif(nrow(predDMIs)/meanRand,4)
 #!# Improve this: transpose and add file info
-sum <- data.frame(ObsDMI, ObsDMINR, MeanRandDMINR, pvalue, FDR, Escore)
+sum <- data.frame(DMIStrategy, IsoFilter, ObsDMI, ObsDMINR, MeanRandDMINR, pvalue, FDR, Escore)
 summary <- write.csv(sum, paste0(opt$output,"summary.csv"), row.names = FALSE, quote = FALSE)
-head(sum)
+#head(sum)
 writeLines(c("","Summary table saved to output directory"))
 
+mainsumfile = "slimenrich.csv"
+PPIFile = basename(input$PPI$datapath)
+MotifFile = basename(input$Motif$datapath)
+DMIFile = basename(input$MotifDomain$datapath)
+DomainFile = basename(input$domain$datapath) 
+if(input$DMIStrategy %in% c("elmcprot","elmiprot")){ DomainFile = "NA" }
+if(input$DMIStrategy %in% c("elmiprot")){ MotifFile = "NA" }
+mainsum = data.frame(PPIFile,MotifFile,DMIFile,DomainFile,DMIStrategy,IsoFilter)
+for(dtype in c("PPI","Motifs","DMI","Domains")){
+  mainsum[[dtype]] = nrow(Data[[paste0("Full",dtype)]])
+  mainsum[[paste0(dtype,"NR")]] = nrow(Data[[dtype]])
+}
+mainsum$PotDMI = nrow(adata$data$potentialDMI)
+mainsum$PotDMNR = nrow(adata$data$potentialDMINR)
+for(scol in colnames(sum)){
+  mainsum[[scol]] = sum[[scol]]
+}
+mainsum$Output = opt$output
+
+### Save main summary output file.
+if(file.exists(mainsumfile)){
+  write.table(mainsum,mainsumfile,append=TRUE,row.names = FALSE,col.names = FALSE,quote=FALSE, sep=",")
+  logEvent(paste(mainsumfile,"summary file appended."))
+}else{
+  write.table(mainsum,mainsumfile, row.names = FALSE, quote=FALSE, sep=",")
+  logEvent(paste(mainsumfile,"summary file created."))
+}
+head(mainsum)
 #!#writeLines("summary Table has been created in output directory")
 #*************************************************************************************
     

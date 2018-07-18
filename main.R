@@ -5,8 +5,8 @@
 ################# ::: APP INFO ::: ######################
 info = list(
   apptitle = "SLiMEnrich",
-  version = "1.5.0",
-  lastedit = "17 Jul 2018",
+  version = "1.5.1",
+  lastedit = "18 Jul 2018",
   author = "Sobia Idrees & Richard J. Edwards",
   contact = "richard.edwards@unsw.edu.au",
   description = "SLiMEnrich predicts Domain Motif Interactions (DMIs) from Protein-Protein Interaction (PPI) data and analyses enrichment through permutation test."
@@ -43,6 +43,7 @@ devmode = FALSE   # This affects some of the printing to screen
 #V1.4.3 - Separated package usage again and reverted HTML to be non-contained (eliminates pandoc requirement).
 #V1.5.0 - Updated source ELM data in data/ to make future updates easier/clearer. Added CRAN mirror and some minor error handling.
 #       - Added scope to over-ride some default settings using a config file: need to expand the options covered by this.
+#V1.5.1 - Added isoform filtering option and tidied up commandline STDOUT.
 ##############################
 # LICENSE
 ##############################
@@ -125,6 +126,11 @@ parsePPIData <- function(input,PPI2){
   # Make unique pairs
   PPI2 = unique(PPI2)
   colnames(PPI2) = c("mProtein","dProtein")
+  #Isoform filter
+  if(input$isofilter){
+    PPI2 = isofilter(PPI2,"mProtein")
+    PPI2 = isofilter(PPI2,"dProtein")
+  }
   return(PPI2)
 }
 
@@ -183,6 +189,12 @@ parseDataMotif <- function(input,Motif){
     Motif <- Motif[,c(protfield,motfield)]
   }
   colnames(Motif) <- c("mProtein","Motif")
+
+  #Isoform filter
+  if(input$isofilter){
+    Motif = isofilter(Motif,"mProtein")
+  }
+  
   return(Motif)
 }
 
@@ -230,6 +242,11 @@ parseDatadomain <- function(input,dProtein){
     dProtein <- dProtein[,c(domfield,protfield)]
   }
   colnames(dProtein) <- c("Domain","dProtein")
+  
+  #Isoform filter
+  if(input$isofilter){
+    dProtein = isofilter(dProtein,"dProtein")
+  }
   return(dProtein)
 }
 
@@ -280,8 +297,33 @@ parseDataMotifDomain <- function(input,Domain){
   }
   Domain <- Domain[,c(motfield,domfield)]
   colnames(Domain) <- c("Motif","Domain")
+  if(input$isofilter){
+    if(! input$DMIStrategy %in% c("elmcdom")){
+      Domain = isofilter(Domain,"Domain")
+    }
+    if(input$DMIStrategy %in% c("elmiprot")){
+      Domain = isofilter(Domain,"Motif")
+    }
+  }
   return(Domain)
 }
+
+### Isoform Filtering ###
+isofilter <- function(protD,pfield){
+  # Filters isoforms from pfield of protD data.frame and returns
+  isfactor <- class(protD[[pfield]]) == "factor"
+  protD[[pfield]] = as.character(protD[[pfield]])
+  allprot <- levels(as.factor(protD[[pfield]]))
+  for(protacc in allprot){
+    psplit = strsplit(protacc,"-")[[1]]
+    if(length(psplit) == 2){
+      protD[protD[[pfield]] == protacc,][[pfield]] = psplit[1]
+    }
+  }
+  if(isfactor){ protD[[pfield]] = as.factor(protD[[pfield]]) }
+  return(protD)
+}
+
 
 #### Generate predicted DMis
 # predDMIs <- generatePredictedDMIs(input)
