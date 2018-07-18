@@ -682,10 +682,10 @@ server <- shinyServer(function(input, output, session){
   #Function to generate Histogram
   plotInput <- function(){
     #File upload check
-    Domain <- inputDataMotifDomain()
-    dProtein <- inputDatadomain()
-    Motif <- inputDataMotif()
-    PPI <- inputDataPPI()
+    #Domain <- inputDataMotifDomain()
+    #dProtein <- inputDatadomain()
+    #Motif <- inputDataMotif()
+    #PPI <- inputDataPPI()
     
     #dirName <- paste0("RandomFiles_", strsplit(as.character(PPIFile$name), '.csv'))
     x <- rPPIDMI()

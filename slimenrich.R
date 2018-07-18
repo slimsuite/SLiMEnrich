@@ -17,14 +17,21 @@ script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initia
 rdir <- dirname(script.name)
 rdir = str_replace_all(rdir,fixed("~+~")," ")
 source(paste0(rdir,"/main.R"))
-writeLines(c("","","########################################"))
-writeLines(paste("### Running",info$apptitle,"Version",info$version,"###"))
-writeLines(c("","","########################################")[3:1])
-#writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),""))
-tryCatch({writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),""))},
-         #error=writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),"UTC"))
-         error = function(err){writeLines(c(err,"(Using UTC)"))}
-)
+printHead <- function(){
+  writeLines(c("","","########################################"))
+  writeLines(paste("### Running",info$apptitle,"Version",info$version,"###"))
+  writeLines(c("","","########################################")[3:1])
+  writeLines(c(paste("Run:", myTime()),"")
+  # tryCatch({writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),""))},
+  #          #error=writeLines(c(paste("Run:", as.POSIXlt(Sys.time())),"UTC"))
+  #          warning = function(warn){ 
+  #            print(warn)
+  #            writeLines("Timezone not recognsied: using UTC",
+  #                       c(paste("Run:", as.POSIXlt(Sys.time(),"UTC"), "")))
+  #           },
+  #          error = function(err){ print(err); writeLines(c("(Using UTC)"))}
+  )
+}
 #*********************************************************************************************************
 #*********************************************************************************************************
 # Additional packages for standalone version. Shiny server packages are loaded in main.R
@@ -79,10 +86,26 @@ option_list = list(
               help="Extend histogram x-axis to xmax.", metavar="integer"),
   #Histogram bin size
   make_option(c("-b", "--binsize"), type="integer", default=1, 
-              help="Set histogram bin size. [Default = 1]", metavar="integer")
+              help="Set histogram bin size. [Default = 1]", metavar="integer"),
+  #Normalise
+  make_option(c("-n", "--normalise"), type="logical", default=FALSE, action = "store_true", 
+              help="Normalise SLiMEnrich histogram to mean Random DMI. [Default = FALSE]", metavar=""),
+  #Config file
+  make_option(c("-c", "--config"), type="character", default="slimenrich.cfg", 
+              help="Set config file. NOTE: ./slimenrich.cfg will always be loaded if present. [Default = slimenrich.cfg]", metavar="FILENAME"),
+  #Version
+  make_option(c("-v", "--version"), type="logical", default=FALSE, action = "store_true", 
+              help="Print version and exit", metavar="FILENAME")
 ); 
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser)
+if(opt$version){ 
+  writeLines(paste(info$apptitle,"Version",info$version)) 
+  q()
+}else{ printHead() }
+if(opt$config != "slimenrich.cfg"){
+  settings = loadConfig(settings,opt$config)
+}
 #########################################################################
 # Update input from options
 if(opt$strategy %in% c("elmiprot","elmcprot","elmcdom")){
@@ -348,6 +371,7 @@ if(reuse & file.exists(randfile)){
 # Plotting/comparing NR predicted DMIs
 predDMIs = adata$data$predDMINR
 predDMInum = nrow(predDMIs)
+plotobs = predDMInum
 input$binwidth = opt$binsize
 input$xlimend = opt$xmax
 
@@ -355,13 +379,27 @@ input$xlimend = opt$xmax
 png(filename=paste0(opt$output,"Histogram.png"), width = settings$pngwidth, height = settings$pngheight, units = "px", pointsize = settings$pointsize)
 x<-read.csv(randfile, sep = ",", header = FALSE)
 names(x) <- "values"
-#bins<- seq(min(x), max(x), length.out = 20 + 1)
+meanRand = mean(x$values)
+
+hmain = settings$histmain
+hxlab = settings$histxlab
+hylab = settings$histylab
+
 xlimmax = max(c(input$xlimend,max(x)*1.1,predDMInum*1.1))
 bins<- seq(0, xlimmax+input$binwidth, input$binwidth)
 ymax = max(hist(x$values, breaks=bins, plot=FALSE)$counts) * 1.5   #shufflenum/2
 
-h<- hist(x$values, breaks=bins, col = "red", border = 'black', main="Distribution of Random DMIs", ylab="Frequency of Random DMIs",
-         xlab="Number of Random DMIs", ylim = c(0,ymax), xlim = c(0, xlimmax), cex.main=1.5, cex.lab=1.5,cex.axis=1.5)
+# Optional normalisation
+if(opt$normalise){
+  plotobs <- plotobs / meanRand
+  x <- x / meanRand
+  bins <- bins / meanRand
+  xlimmax = max(c(input$xlimend,max(x)*1.1,plotobs*1.1))
+  if(hxlab == "Number of DMIs"){ hxlab = paste("Normalised",hxlab) }
+}
+
+h<- hist(x$values, breaks=bins, col = "red", border = 'black', main=hmain, ylab=hylab,
+         xlab=hxlab, ylim = c(0,ymax), xlim = c(0, xlimmax), cex.main=1.5, cex.lab=1.5,cex.axis=1.5)
 
 xfit <- seq(min(x$values),max(x$values),length=40)
 yfit <- dnorm(xfit, mean=mean(x$values),sd=sd(x$values))
@@ -370,11 +408,15 @@ lines(xfit,yfit)
 
 #axis(side=3, lwd = 0, lwd.ticks = 4, at=nrow(predictedDMIs()), lend=1, labels = FALSE, tcl=5, font=2, col = "black", padj = 0, lty = 3)
 #shows the observed value
-mtext(paste("Observed value is: ", predDMInum), side = 3, at=nrow(predDMIs), font = 4)
+if(opt$normalise){
+  mtext(paste0("Enrichment is : ", signif(plotobs,4), "(ObsN = ", predDMInum,")"), side = 3, at=plotobs, font = 4)
+}else{
+  mtext(paste("Observed value is: ", predDMInum), side = 3, at=plotobs, font = 4)
+}
 
-pvalue = length(x[x >= predDMInum])/shufflenum
+pvalue = length(x[x >= plotobs])/shufflenum
 pplace = xlimmax
-if(predDMInum > xlimmax/2){ pplace = predDMInum/2 }
+if(plotobs > xlimmax/2){ pplace = plotobs/2 }
 
 if(pvalue == 0){ 
   mtext(paste0("P-value is: < ", 1/shufflenum), side = 3, at=pplace, font = 4, col = "red")
@@ -385,14 +427,20 @@ if(pvalue == 0){
 }
 
 #points arrow on the observed value
-arrows(predDMInum, ymax, predDMInum, 0, lwd = 2, col = "black", length = 0.1, lty = 3)
+arrows(plotobs, ymax, plotobs, 0, lwd = 2, col = "black", length = 0.1, lty = 3)
 noprint <- dev.off()
+if(opt$normalise){
+  writeLines(c("",paste0("Normalised SLiMEnrich histogram output to",opt$output,"Histogram.png")))
+}else{
+  writeLines(c("",paste0("SLiMEnrich histogram output to",opt$output,"Histogram.png")))
+}
+
 ObsDMI <- nrow(adata$data$predDMI)
 ObsDMINR <- predDMInum
-MeanRandDMINR <- mean(x$values)
+MeanRandDMINR <-signif(meanRand,4)
 #pvalue <-   length(x[x >= predDMInum])/shufflenum
-FDR <- mean(x$values)/nrow(predDMIs)
-Escore <- nrow(predDMIs)/mean(x$values)
+FDR <- signif(meanRand/nrow(predDMIs),4)
+Escore <- signif(nrow(predDMIs)/meanRand,4)
 #!# Improve this: transpose and add file info
 sum <- data.frame(ObsDMI, ObsDMINR, MeanRandDMINR, pvalue, FDR, Escore)
 summary <- write.csv(sum, paste0(opt$output,"summary.csv"), row.names = FALSE, quote = FALSE)
@@ -452,8 +500,10 @@ visSave(g6, file = "network.html", selfcontained = FALSE)
 noprint <- file.rename("network.html",paste0(opt$output,"network.html"))
 newdir = paste0(opt$output,"network_files")
 if(file.exists(newdir)){
-  writeLines(paste0(newdir," already existed: renaming ",newdir,"_backup - please delete backup before re-running (or get errors)."))
-  noprint <- file.rename(newdir,paste0(newdir,"_backup"))
+  bx = 1
+  while(file.exists(paste0(newdir,"_backup_",bx))) { bx = bx + 1 }
+  writeLines(paste0(newdir," already existed: renaming ",newdir,"_backup_",bx))
+  noprint <- file.rename(newdir,paste0(newdir,"_backup_",bx))
 }
 if(file.exists(newdir)){
   writeLines(paste0(newdir," still exists: please delete backup before re-running (or get errors)."))
@@ -461,5 +511,5 @@ if(file.exists(newdir)){
 noprint <- file.rename("network_files",newdir)
 writeLines("A DMI network has been saved as html file")
         
-writeLines(c("",paste0("End ",info$apptitle," V",info$version," Run: ", as.POSIXlt(Sys.time()))))
+writeLines(c("",paste0("End ",info$apptitle," V",info$version," Run: ", myTime())))
         

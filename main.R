@@ -76,6 +76,11 @@ load_or_install = function(package_names)
     library(package_name,character.only=TRUE,quietly=TRUE,verbose=FALSE) 
   } 
 }
+myTime <- function(sqbracket=FALSE){ 
+  if(sqbracket){ return(paste0("[",suppressWarnings(as.POSIXlt(Sys.time())),"]")) }
+  else{ return(suppressWarnings(as.POSIXlt(Sys.time()))) }
+}
+
 ##############################
 #SETUP DATA
 ##############################
@@ -352,7 +357,7 @@ settings = list(
   pngheight = 1600,
   pointsize = 24,
   # Commandline options
-  output = "/output/"
+  output = "./output/"
 )
 ##############################################################
 # Config file settings
