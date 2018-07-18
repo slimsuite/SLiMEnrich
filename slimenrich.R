@@ -19,7 +19,9 @@ rdir = str_replace_all(rdir,fixed("~+~")," ")
 source(paste0(rdir,"/main.R"))
 logEvent <- function(logtext){
   #writeLines(c(paste0(myTime(TRUE),": ",logtext)))
-  writeLines(c(paste(myTime(TRUE),logtext)))
+  for(logline in c(logtext)){
+    writeLines(c(paste(myTime(TRUE),logline)))
+  }
 }
 printHead <- function(){
   writeLines(c("","","#######################################"))
@@ -165,7 +167,7 @@ if(! file.exists(outdir) & outdir != "."){
 #*********************************************************************************************************
 #*********************************************************************************************************
 ####################################################
-# Step 1: Load Data
+# Step 1/9: Load Data
 ####################################################
 #!# Add checks for file existence
 adata = setupData()
@@ -199,7 +201,7 @@ writeLines(paste0('Domains: ', nrow(Data$FullDomains), " (", ncol(Data$FullDomai
 writeLines("")
 
 ####################################################
-# Step 2: Potential DMIs
+# Step 2/9: Potential DMIs
 ####################################################
 ### Generate potential DMI
 logEvent('STEP 2: Generating Potential DMI...')
@@ -228,7 +230,7 @@ logEvent(paste0("Potential DMIs output to ",opt$output,"potentialDMIs.csv"))
 writeLines("")
 
 ####################################################
-# Step 3: Predicted DMIs
+# Step 3/9: Predicted DMIs
 ####################################################
 #PPI-DMI Mapping                                                         
 # PPI2<-read.csv(opt$pFile,header=TRUE,sep=",")
@@ -248,7 +250,7 @@ logEvent(paste0("Known/Predicted DMIs output to ",opt$output,"predictedDMIs.csv"
 writeLines("")
 
 ####################################################
-# Step 4: DMI Statistics
+# Step 4/9: DMI Statistics
 ####################################################
 logEvent("STEP 4: Calculating number of mProteins, motifs, domains and dProteins...")
 png(filename=paste0(opt$output,"summaryStats.png"))
@@ -281,7 +283,7 @@ writeLines("")
      
 #####################################################Enrichment Analysis####################################################
 #*********************************************************************************************************************************
-# Step 5: rPPI-DMI Mapping
+# Step 5/9: rPPI-DMI Mapping
 ####################################################
 # This step generates 1000 random data and then compares each file with the potential DMIs dataset to generate a list of numbers (matches found in each PPI file).
 # Randomized data will be stored in a new directory created in App folder named as "Randomdata" and can be accessed later if required.
@@ -359,9 +361,9 @@ if(reuse & reused < shufflenum){   # Some files made so need to repeat calculati
 writeLines("")
 
 #################################################################################
-# Step 6: rPPI-DMI Mapping                                                               
+# Step 6/9: rPPI-DMI Mapping                                                               
 #################################################################################
-logEvent("Mapping random PPI data to potential DMIs...")
+logEvent("STEP 6: Mapping random PPI data to potential DMIs...")
 #!# Make devmode a toggle
 #i# If devmode is on, will reuse calculated data
 #!# Made this a devmode option because it is dangerous to reuse generic filenames when data can be different
@@ -389,7 +391,7 @@ if(reuse & file.exists(randfile)){
 writeLines("")
 
 #*************************************************************************************
-# Step 7: Histogram
+# Step 7/9: Histogram
 ####################################################
 logEvent("STEP 7: Generating enrichment histogram...")
 # Plotting/comparing NR predicted DMIs
@@ -454,11 +456,16 @@ if(pvalue == 0){
 arrows(plotobs, ymax, plotobs, 0, lwd = 2, col = "black", length = 0.1, lty = 3)
 noprint <- dev.off()
 if(opt$normalise){
-  writeLines(c("",paste0("Normalised SLiMEnrich histogram output to",opt$output,"Histogram.png")))
+  logEvent(c(paste0("Normalised SLiMEnrich histogram output to",opt$output,"Histogram.png")))
 }else{
-  writeLines(c("",paste0("SLiMEnrich histogram output to",opt$output,"Histogram.png")))
+  logEvent(c(paste0("SLiMEnrich histogram output to",opt$output,"Histogram.png")))
 }
+writeLines("")
 
+####################################################
+# Step 8/9: Summary output
+####################################################
+logEvent("STEP 8: Summary output")
 DMIStrategy <- input$DMIStrategy 
 IsoFilter <- input$isofilter 
 ObsDMI <- nrow(adata$data$predDMI)
@@ -471,8 +478,9 @@ Escore <- signif(nrow(predDMIs)/meanRand,4)
 sum <- data.frame(DMIStrategy, IsoFilter, ObsDMI, ObsDMINR, MeanRandDMINR, pvalue, FDR, Escore)
 summary <- write.csv(sum, paste0(opt$output,"summary.csv"), row.names = FALSE, quote = FALSE)
 #head(sum)
-writeLines(c("","Summary table saved to output directory"))
+logEvent(paste0("Summary table saved to ",opt$output,"summary.csv"))
 
+### Main summary file
 mainsumfile = "slimenrich.csv"
 PPIFile = basename(input$PPI$datapath)
 MotifFile = basename(input$Motif$datapath)
@@ -486,7 +494,7 @@ for(dtype in c("PPI","Motifs","DMI","Domains")){
   mainsum[[paste0(dtype,"NR")]] = nrow(Data[[dtype]])
 }
 mainsum$PotDMI = nrow(adata$data$potentialDMI)
-mainsum$PotDMNR = nrow(adata$data$potentialDMINR)
+mainsum$PotDMINR = nrow(adata$data$potentialDMINR)
 for(scol in colnames(sum)){
   mainsum[[scol]] = sum[[scol]]
 }
@@ -500,12 +508,38 @@ if(file.exists(mainsumfile)){
   write.table(mainsum,mainsumfile, row.names = FALSE, quote=FALSE, sep=",")
   logEvent(paste(mainsumfile,"summary file created."))
 }
-head(mainsum)
-#!#writeLines("summary Table has been created in output directory")
+writeLines("")
+#head(mainsum)
+#writeLines("")
+#print(colnames(mainsum))
+
+# [1] "PPIFile"       "MotifFile"     "DMIFile"       "DomainFile"   
+# [5] "DMIStrategy"   "IsoFilter"     "PPI"           "PPINR"        
+# [9] "Motifs"        "MotifsNR"      "DMI"           "DMINR"        
+# [13] "Domains"       "DomainsNR"     "PotDMI"        "PotDMNR"      
+# [17] "ObsDMI"        "ObsDMINR"      "MeanRandDMINR" "pvalue"       
+# [21] "FDR"           "Escore"        "Output" 
+rownames(mainsum) = c("Input")
+head(mainsum[,1:4])
+writeLines("")
+rownames(mainsum) = c("Methods")
+head(mainsum[,5:6])
+writeLines("")
+rownames(mainsum) = c("Data")
+head(mainsum[,7:14])
+writeLines("")
+rownames(mainsum) = c("DMI")
+head(mainsum[,15:19])
+writeLines("")
+rownames(mainsum) = c("Statistics")
+head(mainsum[,20:22])
+writeLines("")
 #*************************************************************************************
     
-#Step 6: DMI Network
 ####################################################
+#Step 9: DMI Network
+####################################################
+logEvent("STEP 9/9: DMI Network")
 predDMIs = adata$data$predDMI
 #Network
 first <- predDMIs[,c("mProtein","Motif")]
@@ -556,14 +590,14 @@ newdir = paste0(opt$output,"network_files")
 if(file.exists(newdir)){
   bx = 1
   while(file.exists(paste0(newdir,"_backup_",bx))) { bx = bx + 1 }
-  writeLines(paste0(newdir," already existed: renaming ",newdir,"_backup_",bx))
+  logEvent(paste0(newdir," already existed: renaming ",newdir,"_backup_",bx))
   noprint <- file.rename(newdir,paste0(newdir,"_backup_",bx))
 }
 if(file.exists(newdir)){
   writeLines(paste0(newdir," still exists: please delete backup before re-running (or get errors)."))
 }
 noprint <- file.rename("network_files",newdir)
-writeLines("A DMI network has been saved as html file")
-        
-writeLines(c("",paste0("End ",info$apptitle," V",info$version," Run: ", myTime())))
+logEvent(paste0("DMI network saved as ", opt$output,"network.html and ",newdir,"/"))
+writeLines("")
+logEvent(paste0("End ",info$apptitle," V",info$version," Run: ", myTime()))
         
